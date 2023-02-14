@@ -1,3 +1,17 @@
+---
+title: "Bayesian Sample Size Estimation for Multilevel Trials"
+author: "Ulrich Lösener"
+date: "13-2-2023"
+output: html_document
+---
+
+# Simulation study for the project: Bayesian Sample Size Determination for Multilevel Trials
+
+In this simulation study, I generate multilevel data for N individuals at n timepoints. The within variable is "time" and the between variable "gender". To make this data appropriate for multilevel models, I introduce some autocorrelation within subjects, meaning that responses from the same subject are more similar than responses from different subjects. 
+
+First, we call the nessecary libraries.
+
+```{r Packages, message=FALSE}
 library(tidyr)       # pipes
 library(dplyr)       # pipes
 library(ggplot2)     # plots
@@ -7,13 +21,16 @@ library(conflicted)  # conflicting commands from different packages
 library(faux)        # simulate multilevel data
 library(merDeriv)    # extracting vcov matrices (vcov.lmerMod)
 library(longitudinal)# for unequal spacing
-library(mgcv)        # construct the covariance matrix of the response, and hence the covariance matrix of the regression weight in each of the four treatment groups
+library(mgcv)        # extracting vcov matrices
+library(bain)        # Bayesian estimation
 
-conflict_prefer("lmer", "lmerTest")
+conflict_prefer("lmer", "lmerTest") # so that lmer commands are preferred over lmerTest commands
+```
 
-set.seed(123)
+We set the hyperparameters N (number of subjects) and n (number of timepoints)
 
-N <- 100 # number of subjects
+```{r Set hyperparameters}
+N <- 100  # number of subjects
 n <- 10   # number of timepoints
 
 # correlation matrix between tpoints with decreasing r for more distant tpoints
@@ -25,10 +42,16 @@ for (i in 1:n) {
   cmat[cmat==i] <- sequ.corr[i]
 }
 diag(cmat) <- 1
+```
 
-# generate data
+## Data generation
 
-# VERSION 1: all in one - ICC independent of cmat
+### Version 1
+
+First version of data generation: ICC not specified -- only the timepoint vectors are correlated, no specific intrasubject correlation
+```{r Generate data V1}
+set.seed(123)
+
 dat0 <- rnorm_multi(n=N/2, vars=n, mu=seq(1, (n), length=n), sd=2, r=cmat)
 dat0$gender <- 0
 dat1 <- rnorm_multi(n=N/2, vars=n, mu=seq(1, (n/4), length=n), sd=2, r=cmat)
@@ -36,8 +59,15 @@ dat1$gender <- 1
 dat.wide <- rbind(dat0, dat1)
 colnames(dat.wide)[1:n] <- seq(1,n)
 dat.wide$id <- 1:N
+```
 
-# VERSION 2: per subject - ICC does depend on cmat
+### Version 2
+
+Second version of data generation: ICC specified by the correlation matrix generated above -- intrasubject correlation depends on the elements of the correlation matrix
+
+```{r Generate data V2}
+set.seed(123)
+
 datmale <- matrix(NA, nrow=N/2, ncol=n)
 datfemale <- matrix(NA, nrow=N/2, ncol=n)
 for (i in 1:N/2) {
@@ -49,8 +79,15 @@ colnames(dat.wide)[1:n] <- seq(1,n)
 gender <- c(rep(0, N/2), rep(1,N/2))
 id <- seq(1:N)
 dat.wide <- cbind(dat.wide, id, gender)
+```
 
-# VERSION 3: even more ICC - use previous value as mean for next value
+### Version 3
+
+Third version of data generation: within subjects, each value depends on the previous value at $t-1$. This leads to more stable trends within subjects.
+
+```{r Generate data V3, warning=FALSE}
+set.seed(123)
+
 datmale <- matrix(NA, nrow=N/2, ncol=n)
 datmale[,1] <- rnorm(N/2, mean=1, sd=3)
 datfemale <- matrix(NA, nrow=N/2, ncol=n)
@@ -66,28 +103,26 @@ colnames(dat.wide)[1:n] <- seq(1,n)
 gender <- c(rep(0, N/2), rep(1,N/2))
 id <- seq(1:N)
 dat.wide <- cbind(dat.wide, id, gender)
+```
 
-# unequal spacing
-dat.wide <- as.matrix(dat.wide)
-mat <- matrix(NA, nrow = N/2*n, ncol = 2)
-mat[,1] <- dat.wide[dat.wide[,"gender"]==0,1:n]
-mat[,2] <- dat.wide[dat.wide[,"gender"]==1,1:n]
-z <- as.longitudinal(mat, repeats = 50, time = c(1,2,5,9,10))
-plot(z, 1:2, type = "mean")
+After having generated the data using one of the versions above, we transform the data format from wide to long
 
-# wide to long
+```{r Wide to long}
 sequ.tpoints <- as.character(seq(1:n))
 dat <- as.data.frame(dat.wide) %>% 
   pivot_longer(cols = all_of(sequ.tpoints), names_to = "time", values_to = "y") 
 dat$time <- as.numeric(dat$time)
 dat$gender <- as.factor(dat$gender)
+```
 
-# descriptives
-tapply(dat$y, dat$gender, summary)
-boxplot(formula = y ~ gender, data = dat)
+## Descriptives and plots
 
-# plots
+```{r Descriptives}
+tapply(dat$y, dat$gender, summary) # display means per gender
+boxplot(formula = y ~ gender, data = dat) # in a boxplot
+```
 
+```{r Plots}
 # explore individual trajectories
 ggplot(data = dat, aes(x = time, y = y, group = id, color = gender)) + geom_line()
 # one line for everyone
@@ -100,49 +135,67 @@ p <- ggplot(data = dat, aes(x = time, y = y, group = id, color = gender)) + geom
 p  + geom_smooth(group = 0, method = "lm", data = subset(dat, dat$gender == 0)) +
      geom_smooth(group = 0, method = "lm", data = subset(dat, dat$gender == 1))
 
-# fit models
+```
 
-# intercept-only
+
+## Fit models
+
+### Intercept only model
+
+```{r Intercept only}
 int.only <- lmer(y ~ 1 + (1 | id), data = dat)
 summary(int.only) 
-logLik(int.only)           # -1126.543 (df=3)
-performance::icc(int.only) # .222
+logLik(int.only)           
+performance::icc(int.only) 
 p + geom_smooth(method = "lm", formula = y ~ 1, se = F)
+```
 
-# level 1 predictor: time
+### Level 1 predictor: time
+
+```{r Lvl 1}
 lvl1 <- lmer(y ~ time + (1 | id), data = dat)
 summary(lvl1)
 logLik(lvl1)           # -1100.4 (df=4) - better fit compared to int.only
 anova(int.only, lvl1)  # likelihood ratio test significant
 performance::icc(lvl1) # 0.242
 p + geom_smooth(method = "lm", formula = y ~ 1 + x, se = F)
-dat %>% gf_point(y ~ time) %>% gf_lm()
+```
 
-# add level 2  predictor: gender
+
+### Level 2 predictor: gender
+
+```{r Lvl 2}
 lvl2 <- lmer(y ~ time + gender + (1 | id), data = dat)
 summary(lvl2)
 logLik(lvl2)           # -1063.76 (df=5) - better fit compared to lvl1 predictor only
 anova(lvl1, lvl2)      # likelihood ratio test significant
 performance::icc(lvl2) # 0.044
 vcov.lmerMod(lvl2)
+```
 
-#p + stat_smooth(group = 0, method = "lm", data = subset(dat, dat$gender == 0)) +
-#    stat_smooth(group = 0, method = "lm", data = subset(dat, dat$gender == 1))
+### Random slope for time
 
-# add random slopes for time
+```{r Random slope}
 rand.slop <- lmer(y ~ time + gender + (1 + time | id), data = dat)
 summary(rand.slop)
 logLik(rand.slop) 
 anova(lvl2, rand.slop)
 performance::icc(rand.slop)
+```
 
-# add interaction effect between time and gender
+### Interaction between time and gender
+
+```{r Interaction effect}
 inter <- lmer(y ~ time + gender + time:gender + (1 + time | id), data = dat)
 summary(inter)
 logLik(inter)           # -1039.767 (df=6)
 anova(lvl2, inter)      # likelihood ratio test significant
 performance::icc(inter) # 0.059
+```
 
+
+
+```{r}
 # extract estimates, vcov matrix - Nikolas wrapper function
 est <- fixef(inter)
 covmat <- vcov.lmerMod(inter)
@@ -161,14 +214,7 @@ cov1=solve(t(cat1)%*%Vmat1inv%*%cat1)
 
 estimates <- inter$coefficients$fixed
 
-results <- bain(estimates,hypotheses <-"Cont<CC<TV<Both;Cont<TV<CC<Both",n=ngroup,Sigma=covariances,group_parameters=1,joint_parameters = 1)
+results <- bain(estimates,hypotheses<-"Cont<CC<TV<Both;Cont<TV<CC<Both",n=ngroup,Sigma=covariances,group_parameters=1,joint_parameters = 1)
 
-
-
-
-
-
-
-
-
+```
 
