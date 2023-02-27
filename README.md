@@ -1,8 +1,6 @@
-<<<<<<< HEAD
-
 # Bayesian Sample Size Determination for Multilevel Models with Longitudinal Data
 
-The file "Simulation.RMD" contains simulated multilevel data to which different multilevel models are fitted and estimated using Bayesian and frequentist estimation techniques.
+The file "Simulation.RMD" contains simulated multilevel data to which a multilevel model is fitted. Hypotheses about the parameter of the interaction coefficient ($\beta_2$) are tested using Bayesian techniques.
 
 ## Data generation
 
@@ -25,10 +23,6 @@ $$y_{ij} = \beta_0 + u_{0i} + \beta_1 t_j + \beta_2 X_i t_j + u_{1i} t_j + e_{ij
 
 Here, $\beta_0$ represents the average value for y at $t_0$ and $\beta_1$ the average rate of change for subjects in the $X_0$ condition. The average difference in the rate of change of y scores of subjects in the $X_0$ condition (relative to those in the $X_1$ condition) is represented by $\beta_2$. Thus, $\beta_2$ denotes the interaction between time and treatment, indicating the difference in slopes between the two treatment groups. To test whether a treatment intervention has an effect on symptom level, this is the parameter of interest. 
 
-The population distribution of $u_{0i}$ and $u_{1i}$ is assumed to be bivariate normal $N(0, \Sigma_u)$ with 
-$$\Sigma_u = \begin{bmatrix} \sigma^2_{u0} & \sigma_{u0u1}\\
+The population distribution of $u_{0i}$ and $u_{1i}$ is assumed to be bivariate normal $N(0, \Sigma_u)$ with $$\Sigma_u = \begin{bmatrix} \sigma^2_{u0} & \sigma_{u0u1}\\
 \sigma_{u0u1} & \sigma^2_{u1}
 \end{bmatrix}$$
-
-
-969a27a667c9dd6ef78e19807e057d7212aa4bc2
