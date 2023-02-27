@@ -1,139 +1,160 @@
 ---
 title: "Bayesian Sample Size Estimation for Multilevel Trials"
 author: "Ulrich Lösener"
-date: "13-2-2023"
-output: html_document
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 # Simulation study for the project: Bayesian Sample Size Determination for Multilevel Trials
 
-In this simulation study, I generate multilevel data for N individuals at n timepoints. The within variable is "time" and the between variable "gender". To make this data appropriate for multilevel models, I introduce some autocorrelation within subjects, meaning that responses from the same subject are more similar than responses from different subjects. 
+In this simulation study, I generate multilevel data for N individuals at n timepoints. The within variable is "time" and the between variable "treatment".
 
-First, we call the nessecary libraries.
+First, I call the necessary libraries.
 
 ```{r Packages, message=FALSE}
 library(tidyr)       # pipes
 library(dplyr)       # pipes
 library(ggplot2)     # plots
+library(nlme)
 library(lme4)        # fit multilevel model
 library(lmerTest)    # get p-values of multilevel model
 library(conflicted)  # conflicting commands from different packages
-library(faux)        # simulate multilevel data
 library(merDeriv)    # extracting vcov matrices (vcov.lmerMod)
-library(longitudinal)# for unequal spacing
 library(mgcv)        # extracting vcov matrices
 library(bain)        # Bayesian estimation
+library(MASS)        # multinorm - already included in lme4?
 
-conflict_prefer("lmer", "lmerTest") # so that lmer commands are preferred over lmerTest commands
-```
-
-We set the hyperparameters N (number of subjects) and n (number of timepoints)
-
-```{r Set hyperparameters}
-N <- 100  # number of subjects
-n <- 10   # number of timepoints
-
-# correlation matrix between tpoints with decreasing r for more distant tpoints
-cmat <- abs(row(diag(n)) - col(diag(n)))
-x <- 0:n
-sequ.corr <- .6 * exp(-.8*x)
-#plot(x, sequ.corr, type = "l", xlim = c(0,5), ylim = c(0,1))
-for (i in 1:n) {
-  cmat[cmat==i] <- sequ.corr[i]
-}
-diag(cmat) <- 1
+conflicts_prefer(lme4::lmer) # tell R to prefer lme4 over lmer
+conflicts_prefer(dplyr::select)
 ```
 
 ## Data generation
 
-### Version 1
+In the trajectory of treatment interventions individuals may vary both in their initial symptom level and rate of change over time. That is, people might start out the trial with different severity of their symptoms and some of them might get better while others stay the same or even get worse. Because of random allocation to treatment conditions, the initial (pre-treatment) differences in symptom levels is unrelated to the treatment groups. The further symptom trajectory of an individual, however, depends on which treatment condition they are assigned to. Therefore, I choose a model which accounts for interindividual differences at the first measurement (random intercept) that cannot be explained by the treatment condition and which allows individuals to have different rates of change over time (random slopes). These differences in slopes, in turn, can be (partly) explained by membership of a treatment condition. 
 
-First version of data generation: ICC not specified -- only the timepoint vectors are correlated, no specific intrasubject correlation
-```{r Generate data V1}
-set.seed(123)
+"asd"
 
-dat0 <- rnorm_multi(n=N/2, vars=n, mu=seq(1, (n), length=n), sd=2, r=cmat)
-dat0$gender <- 0
-dat1 <- rnorm_multi(n=N/2, vars=n, mu=seq(1, (n/4), length=n), sd=2, r=cmat)
-dat1$gender <- 1
-dat.wide <- rbind(dat0, dat1)
-colnames(dat.wide)[1:n] <- seq(1,n)
-dat.wide$id <- 1:N
-```
+#It is common in longitudinal intervention data that measurements closer in time correlate higher with each other than measurements further separated in time. Also, variability in the outcome typically increases over time as individuals tend to be more similar in the beginning of a study and subsequently change at different rates. This renders the assumption of compound symmetry (constant variances and covariances over time) practically untenable. To account for this, a multilevel regression model with random intercept and random slopes is used in the following simulation.  
 
-### Version 2
+Level 1 (within subjects) regression equation: 
+$$y_{ij} = b_{0i} + b_{1i}t_j + e_{ij}$$ where $y_{ij}$ denotes the score on the outcome variable of individual i ($i=1,2,...,N$) at measurement occasion j ($j=1,2,...,n$) and $$e_{ij} \sim N(0, \sigma^2)$$
 
-Second version of data generation: ICC specified by the correlation matrix generated above -- intrasubject correlation depends on the elements of the correlation matrix
+Level 2 (between subjects) regression equations: 
+$$b_{0i} = \beta_0 + u_{0i}$$ 
+$$b_{1i} = \beta_1 + \beta_2 X_i + u_{1i}$$ where $X_i$ denotes the treatment condition, $u_{0i}$ is the individual deviation from the treatment group intercept, and $u_{1i}$ is the individual deviation from the treatment group slope. Note that membership of the treatment group ($X_i$) does not predict initial symptom levels ($b_{0i}$) but only the rate of change over time ($b_{1i}$).
 
-```{r Generate data V2}
-set.seed(123)
+By substitution we get the total regression equation containing both levels.
 
-datmale <- matrix(NA, nrow=N/2, ncol=n)
-datfemale <- matrix(NA, nrow=N/2, ncol=n)
-for (i in 1:N/2) {
-  datmale[i,1:n] <- unlist(rnorm_multi(n=1, vars=n, mu=seq(1,n), sd=2, r=cmat))
-  datfemale[i,1:n] <- unlist(rnorm_multi(n=1, vars=n, mu=seq(1, (n/4), length=n), sd=2, r=cmat))
+$$y_{ij} = \beta_0 + u_{0i} + (\beta_1 + \beta_2 X_i + u_{1i})*t_j + e_{ij}$$
+Or 
+
+$$y_{ij} = \beta_0 + u_{0i} + \beta_1 t_j + \beta_2 X_i t_j + u_{1i} t_j + e_{ij}$$
+
+
+Here, $\beta_0$ represents the average value for y at $t_0$ and $\beta_1$ the average rate of change for subjects in the $X_0$ condition. The average difference in the rate of change of y scores of subjects in the $X_0$ condition (relative to those in the $X_1$ condition) is represented by $\beta_2$. Thus, $\beta_2$ denotes the interaction between time and treatment, indicating the difference in slopes between the two treatment groups. To test whether a treatment intervention has an effect on symptom level, this is the parameter of interest. 
+
+
+The population distribution of $u_{0i}$ and $u_{1i}$ is assumed to be bivariate normal $N(0, \Sigma_u)$ with 
+$$\Sigma_u = \begin{bmatrix} \sigma^2_{u0} & \sigma_{u0u1}\\
+\sigma_{u0u1} & \sigma^2_{u1}
+\end{bmatrix}$$
+
+
+```{r Data Generation}
+N <- 100          # number of subjects
+d <- c(0,1,2,3,4) # time of measurements
+n <- length(d)    # number of measurements per subject
+
+sigmasq.u0 <- 1  # variance of individual deviation from treatment intercept 
+sigmasq.u1 <- 1  # variance of individual deviation from treatment slope
+sigma.u0.u1 <- 0 # covariance between sigmasq.u0 and sigmasq.u1. If positive, then individuals with higher(lower) initial values tend to have a higher (lower) rate of change over time.
+sigmasq.e <- 1 # error variance
+
+# create data vectors
+y <- rep(NA, N)  # data storage
+t <- rep(d, N)
+id <- rep(seq_len(N), each=n)
+treat <- rep(c(0, 1), each=(N*n)/2)
+
+beta0 <- rep(0, N*n) # average y at t0 for x=0
+beta1 <- rep(1, N*n) # average increase for x=0
+beta2 <- rep(.5, N*n) # average difference in slopes between conditions
+
+#set.seed(123)      # for reproducibility
+
+m <- 100           # number of datasets
+sets <- vector("list", m)     # storage for datasets
+est <- matrix(c(seq(1:m)), nrow = m, ncol = 2) # storage for fixed estimates
+colnames(est) <- c("dataset", "t:treat")
+bf12 <- numeric(m) # storage for BFs
+bf.u <- numeric(m) # storage for BFs
+bf.c <- numeric(m) # storage for BFs
+pmp.b <- numeric(m) # storage for BFs
+
+for (i in 1:m) {
+multinorm <- mvrnorm(n=N,mu=c(0,0), matrix(c(sigmasq.u0, sigma.u0.u1, sigma.u0.u1, sigmasq.u1), nrow=2, ncol=2)) # draw individual deviation from treatment intercept and slope from a multivariate normal distribution with mean 0.
+u0 <- rep(multinorm[,1], each=n)
+u1 <- rep(multinorm[,2], each=n)
+e <- rnorm(N*n, 0, sqrt(sigmasq.e))
+
+y <- beta0 + u0 + beta1*t + beta2*treat*t + u1*t + e
+dat <- data.frame(id, treat, t, y)
+sets[[i]] <- dat
+
+inter <- lme(y ~ t + t:treat, random =~ t - 1 | id, data = dat)
+#, control = lmeControl(msMaxIter = 1000, msMaxEval = 1000))
+est[i,2] <- inter$coefficients$fixed[3]
+sig <- list(as.matrix(inter$varFix[3,3]))
+
+result <- bain(est[i,2], hypotheses <- "t:treat>0;t:treat<0", n=N, Sigma = sig, group_parameters = 1)
+
+bf12[i] <- result$BFmatrix[1,2]
+bf.u[i] <- result$fit$BF.u[1]
+bf.c[i] <- result$fit$BF.c[1]
+pmp.b[i] <- result$fit$PMPb[1]
+
 }
-dat.wide <- rbind(datmale, datfemale)
-colnames(dat.wide)[1:n] <- seq(1,n)
-gender <- c(rep(0, N/2), rep(1,N/2))
-id <- seq(1:N)
-dat.wide <- cbind(dat.wide, id, gender)
+
+par(mfrow=c(2,2))
+plot(sort(bf.u), type="l")
+#plot(sort(bf.c), type="l")
+plot(sort(bf12), type="l")
+
+hist(bf.u)
+#hist(bf.c)
+hist(bf12)
+
+#hist(pmp.b)
+quantile(bf12, .20)
+
+# check the bias in estimates of beta 2
+mean(est[,2]- beta2) 
+
 ```
 
-### Version 3
+As can be seen from the figure, individuals differ in their intercept and slope. Subjects in the treatment group ($X_1$) seem to have systematically higher slopes as compared to those in the control group ($X_0$), suggesting an interaction effect between time and treatment. Also, the variability of y scores seems to increase over time, rendering the assumption of compound symmetry untenable. 
 
-Third version of data generation: within subjects, each value depends on the previous value at $t-1$. This leads to more stable trends within subjects.
 
-```{r Generate data V3, warning=FALSE}
-set.seed(123)
+## Descriptives/plots
 
-datmale <- matrix(NA, nrow=N/2, ncol=n)
-datmale[,1] <- rnorm(N/2, mean=1, sd=3)
-datfemale <- matrix(NA, nrow=N/2, ncol=n)
-datfemale[,1] <- rnorm(N/2, mean=1, sd=3)
-for (i in 1:N/2) {
-  for (j in 2:n) {
-    datmale[i,j] <- rnorm(n=1, mean=datmale[i,(j-1)]+1, sd=3)
-    datfemale[i,j] <- rnorm(n=1, mean=datfemale[i,(j-1)], sd=3)
-  }
-}
-dat.wide <- rbind(datmale, datfemale)
-colnames(dat.wide)[1:n] <- seq(1,n)
-gender <- c(rep(0, N/2), rep(1,N/2))
-id <- seq(1:N)
-dat.wide <- cbind(dat.wide, id, gender)
+```{r Descriptives, echo=F}
+# plot individual trajectories
+ggplot(data = dat, aes(x = t, y = y, group = id, color = as.factor(treat))) + geom_line()
+
+boxplot(formula = y ~ treat, data = dat) # in a boxplot
 ```
 
-After having generated the data using one of the versions above, we transform the data format from wide to long
-
-```{r Wide to long}
-sequ.tpoints <- as.character(seq(1:n))
-dat <- as.data.frame(dat.wide) %>% 
-  pivot_longer(cols = all_of(sequ.tpoints), names_to = "time", values_to = "y") 
-dat$time <- as.numeric(dat$time)
-dat$gender <- as.factor(dat$gender)
-```
-
-## Descriptives and plots
-
-```{r Descriptives}
-tapply(dat$y, dat$gender, summary) # display means per gender
-boxplot(formula = y ~ gender, data = dat) # in a boxplot
-```
-
-```{r Plots}
-# explore individual trajectories
-ggplot(data = dat, aes(x = time, y = y, group = id, color = gender)) + geom_line()
+```{r Plots, echo=F}
 # one line for everyone
-ggplot(data = dat, aes(x = time, y = y), color = gender) + 
-  geom_jitter(aes(color = gender), width = .1, height = 0) + 
-  geom_smooth(method = "lm")
+ggplot(data = dat, aes(x = t, y = y), color = treat) + 
+  geom_jitter(aes(color = treat), width = .1, height = 0) + 
+  geom_smooth(method = "lm", formula = 'y ~ x')
 # base
-p <- ggplot(data = dat, aes(x = time, y = y, group = id, color = gender)) + geom_jitter(width = .1, height = 0)
-# different lines for gender
-p  + geom_smooth(group = 0, method = "lm", data = subset(dat, dat$gender == 0)) +
-     geom_smooth(group = 0, method = "lm", data = subset(dat, dat$gender == 1))
+p <- ggplot(data = dat, aes(x = t, y = y, group = id, color = treat)) + geom_jitter(width = .1, height = 0)
+# different lines for treat
+p  + geom_smooth(group = 0, method = "lm", data = subset(dat, dat$treat == 0), formula = 'y ~ x') + geom_smooth(group = 0, method = "lm", data = subset(dat, dat$treat == 1), formula = 'y ~ x')
 
 ```
 
@@ -150,22 +171,57 @@ performance::icc(int.only)
 p + geom_smooth(method = "lm", formula = y ~ 1, se = F)
 ```
 
+### Level 1 (time) and level 2 (treatment) predictors plus interaction between time and treatment
+
+```{r Interaction effect}
+inter <- lme(y ~ t + treat + t:treat, random =~ 1 + time | id, data = dat)
+summary(inter)
+```
+
+### Bayesian hypothesis testing about the interaction coefficient
+
+In this section, I test whether the treatment has an effect on the symptom trajectory over time. I formulate and test three competing hypotheses about the interaction coefficient $\beta_3$ against each other, their complements and the unconstrained hypothesis $H_u$ which does not postulate any constraints on the parameter. 
+
+$$H_1: \beta_3 > 0 \\
+H_1: \beta_3 < 0 \\
+H_2: \beta_3 = 0 \\
+H_u: \beta_3$$
+
+
+```{r Bain}
+
+est <- inter$coefficients$fixed
+#covmat <- vcov.lmerMod(inter2)
+#coef(inter)
+
+sig <- list(as.matrix(inter$varFix[4,4]))
+
+result <- bain(est[4], hypotheses <- "time:treat>0;time:treat<0;time:treat=0", n=N*n, Sigma = sig, group_parameters = 1)
+result
+```
+
+The resulting Bayes Factors tell us that $H_1$ is the hypothesis most likely to be true out of the set of considered hypotheses. We therefore conclude that in the treatment group ($X_1$), the symptom level increases more over time compared to the control group ($X_0$).
+
+
+--------------------------------------------------------------------------------
+
+## Appendix: In-between models
+
 ### Level 1 predictor: time
 
 ```{r Lvl 1}
 lvl1 <- lmer(y ~ time + (1 | id), data = dat)
 summary(lvl1)
-logLik(lvl1)           # -1100.4 (df=4) - better fit compared to int.only
-anova(int.only, lvl1)  # likelihood ratio test significant
-performance::icc(lvl1) # 0.242
-p + geom_smooth(method = "lm", formula = y ~ 1 + x, se = F)
+logLik(lvl1)           
+anova(int.only, lvl1)  
+performance::icc(lvl1) 
 ```
 
 
-### Level 2 predictor: gender
+### Level 2 predictor: treat
 
 ```{r Lvl 2}
-lvl2 <- lmer(y ~ time + gender + (1 | id), data = dat)
+lvl2 <- lmer(y ~ time + treat + (1 | id), data = dat)
 summary(lvl2)
 logLik(lvl2)           # -1063.76 (df=5) - better fit compared to lvl1 predictor only
 anova(lvl1, lvl2)      # likelihood ratio test significant
@@ -176,45 +232,9 @@ vcov.lmerMod(lvl2)
 ### Random slope for time
 
 ```{r Random slope}
-rand.slop <- lmer(y ~ time + gender + (1 + time | id), data = dat)
+rand.slop <- lmer(y ~ time + treat + (1 + time | id), data = dat)
 summary(rand.slop)
 logLik(rand.slop) 
 anova(lvl2, rand.slop)
 performance::icc(rand.slop)
 ```
-
-### Interaction between time and gender
-
-```{r Interaction effect}
-inter <- lmer(y ~ time + gender + time:gender + (1 + time | id), data = dat)
-summary(inter)
-logLik(inter)           # -1039.767 (df=6)
-anova(lvl2, inter)      # likelihood ratio test significant
-performance::icc(inter) # 0.059
-```
-
-
-
-```{r}
-# extract estimates, vcov matrix - Nikolas wrapper function
-est <- fixef(inter)
-covmat <- vcov.lmerMod(inter)
-coef(inter)
-result <- bain(inter, hypothesis = "time=0")
-bain_2lmer(x=inter, hypotheses="time:gender=0;time:gender<0", N=100)
-
-# Mirjams method
-cat <- subset(cbind(dat$gender,TVSFP$PRETHKS),TVSFP$treat==1)
-cat1[,1]=1
-cat1=as.matrix(cat1)
-Vmat1=Vmat[TVSFP$treat==1,TVSFP$treat==1]
-Vmat1inv=solve(Vmat1)
-cov1=solve(t(cat1)%*%Vmat1inv%*%cat1)
-
-
-estimates <- inter$coefficients$fixed
-
-results <- bain(estimates,hypotheses<-"Cont<CC<TV<Both;Cont<TV<CC<Both",n=ngroup,Sigma=covariances,group_parameters=1,joint_parameters = 1)
-
-```
-
