@@ -25,88 +25,128 @@ library(merDeriv)    # extracting vcov matrices (vcov.lmerMod)
 library(mgcv)        # extracting vcov matrices
 library(bain)        # Bayesian estimation
 library(MASS)        # multinorm - already included in lme4?
+library(MuMIn)       # for R squared with r.squaredGLMM(inter)
 
 conflicts_prefer(lme4::lmer) # tell R to prefer lme4 over lmer
 conflicts_prefer(dplyr::select)
 ```
 
-
-
-
 ```{r Data Generation}
-N <- 100          # number of subjects
+start <- Sys.time()
+
+mbf12 <- numeric(10)
+mbf.u <- numeric(10)
+mbf.c <- numeric(10)
+mpmp.a <- numeric(10)
+
+for(j in 1:10){
+N <- j*10          # number of subjects
 d <- c(0,1,2,3,4) # time of measurements
 n <- length(d)    # number of measurements per subject
 
 sigmasq.u0 <- 1  # variance of individual deviation from treatment intercept 
 sigmasq.u1 <- 1  # variance of individual deviation from treatment slope
 sigma.u0.u1 <- 0 # covariance between sigmasq.u0 and sigmasq.u1. If positive, then individuals with higher(lower) initial values tend to have a higher (lower) rate of change over time.
-sigmasq.e <- 1 # error variance
+sigmasq.e <- 1  # error variance
 
 # create data vectors
 y <- rep(NA, N)  # data storage
 t <- rep(d, N)
 id <- rep(seq_len(N), each=n)
-treat <- rep(c(0, 1), each=(N*n)/2)
+treat <- rep(c(rep(0, n), rep(1, n)), N*n)
+dat0 <- data.frame(id, treat, t)
 
 beta0 <- rep(0, N*n) # average y at t0 for x=0
 beta1 <- rep(1, N*n) # average increase for x=0
-beta2 <- rep(.5, N*n) # average difference in slopes between conditions
+beta2 <- rep(.2, N*n) # average difference in slopes between conditions
 
 #set.seed(123)      # for reproducibility
 
-m <- 100           # number of datasets
+m <- 100          # number of datasets
 sets <- vector("list", m)     # storage for datasets
 est <- matrix(c(seq(1:m)), nrow = m, ncol = 2) # storage for fixed estimates
 colnames(est) <- c("dataset", "t:treat")
 bf12 <- numeric(m) # storage for BFs
 bf.u <- numeric(m) # storage for BFs
 bf.c <- numeric(m) # storage for BFs
-pmp.b <- numeric(m) # storage for BFs
+pmp.a <- numeric(m) # storage for BFs
 
 for (i in 1:m) {
-multinorm <- mvrnorm(n=N,mu=c(0,0), matrix(c(sigmasq.u0, sigma.u0.u1, sigma.u0.u1, sigmasq.u1), nrow=2, ncol=2)) # draw individual deviation from treatment intercept and slope from a multivariate normal distribution with mean 0.
-u0 <- rep(multinorm[,1], each=n)
-u1 <- rep(multinorm[,2], each=n)
-e <- rnorm(N*n, 0, sqrt(sigmasq.e))
-
-y <- beta0 + u0 + beta1*t + beta2*treat*t + u1*t + e
-dat <- data.frame(id, treat, t, y)
-sets[[i]] <- dat
-
-inter <- lme(y ~ t + t:treat, random =~ t - 1 | id, data = dat)
-#, control = lmeControl(msMaxIter = 1000, msMaxEval = 1000))
-est[i,2] <- inter$coefficients$fixed[3]
-sig <- list(as.matrix(inter$varFix[3,3]))
-
-result <- bain(est[i,2], hypotheses <- "t:treat>0;t:treat<0", n=N, Sigma = sig, group_parameters = 1)
-
-bf12[i] <- result$BFmatrix[1,2]
-bf.u[i] <- result$fit$BF.u[1]
-bf.c[i] <- result$fit$BF.c[1]
-pmp.b[i] <- result$fit$PMPb[1]
+  
+  multinorm <- mvrnorm(n=N, mu=c(0,0), matrix(c(sigmasq.u0, sigma.u0.u1, sigma.u0.u1, sigmasq.u1), nrow=2, ncol=2)) # draw individual deviation from treatment intercept and slope from a multivariate normal distribution with mean 0.
+  u0 <- rep(multinorm[,1], each=n)
+  u1 <- rep(multinorm[,2], each=n)
+  e <- rnorm(N*n, 0, sqrt(sigmasq.e))
+  
+  y <- beta0 + u0 + beta1*t + beta2*treat*t + u1*t + e
+  dat <- data.frame(dat0, y)
+  sets[[i]] <- dat
+  
+  inter <- lme(y ~ t + t:treat, random =~ t - 1 | id, data = dat)
+  #, control = lmeControl(msMaxIter = 1000, msMaxEval = 1000))
+  est[i,2] <- inter$coefficients$fixed[3]
+  sig <- list(as.matrix(inter$varFix[3,3]))
+  
+  result <- bain(est[i,2], hypotheses <- "t:treat>0;t:treat<0", n=N, Sigma = sig, group_parameters = 1)
+  
+  bf12[i] <- result$BFmatrix[1,2]
+  bf.u[i] <- result$fit$BF.u[1]
+  bf.c[i] <- result$fit$BF.c[1]
+  pmp.a[i] <- result$fit$PMPa[1]
 
 }
 
-par(mfrow=c(2,2))
-plot(sort(bf.u), type="l")
-#plot(sort(bf.c), type="l")
-plot(sort(bf12), type="l")
+mbf12[j] <- mean(bf12)
+mbf.u[j] <- mean(bf.u)
+mbf.c[j] <- mean(bf.c)
+mpmp.a[j] <- mean(pmp.a)
 
-hist(bf.u)
-#hist(bf.c)
-hist(bf12)
+}
+print( Sys.time() - start ) # 1.5 minutes for N=100, n=5, and m=10
 
-#hist(pmp.b)
-quantile(bf12, .20)
 
-# check the bias in estimates of beta 2
-mean(est[,2]- beta2) 
+pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/mBF12_N.pdf",   
+    width = 4, # The width of the plot in inches
+    height = 4) # The height of the plot in inches
+
+plot(x=seq(10,100,10), y=mbf12, type="l", xlab="N")
+
+dev.off()
+
+
+pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/mBFu_N.pdf",   
+    width = 4, # The width of the plot in inches
+    height = 4) # The height of the plot in inches
+
+plot(x=seq(10,100,10), y=mbf.u, type="l", xlab="N")
+
+dev.off()
+
+
+plot(x=seq(10,100,10), y=mpmp.a, type="l", xlab="N")
+
+
+# par(mfrow=c(2,2))
+# plot(bf.u, type="l")
+# #plot(sort(bf.c), type="l")
+# plot(bf12, type="l")
+# 
+# hist(bf.u, breaks=10)
+# #hist(bf.c)
+# hist(bf12, breaks=10)
+# 
+# #hist(pmp.b)
+# quantile(bf12, .20)
+# 
+# # check the bias in estimates of beta 2
+# mean(est[,2] - beta2) 
+
+
 
 ```
 
-As can be seen from the figure, individuals differ in their intercept and slope. Subjects in the treatment group ($X_1$) seem to have systematically higher slopes as compared to those in the control group ($X_0$), suggesting an interaction effect between time and treatment. Also, the variability of y scores seems to increase over time, rendering the assumption of compound symmetry untenable. 
 
+The resulting Bayes Factors tell us that $H_1$ is the hypothesis most likely to be true out of the set of considered hypotheses. We therefore conclude that in the treatment group ($X_1$), the symptom level increases more over time compared to the control group ($X_0$).
 
 ## Descriptives/plots
 
@@ -116,6 +156,9 @@ ggplot(data = dat, aes(x = t, y = y, group = id, color = as.factor(treat))) + ge
 
 boxplot(formula = y ~ treat, data = dat) # in a boxplot
 ```
+
+As can be seen from the figure, individuals differ in their intercept and slope. Subjects in the treatment group ($X_1$) seem to have systematically higher slopes as compared to those in the control group ($X_0$), suggesting an interaction effect between time and treatment. Also, the variability of y scores seems to increase over time, rendering the assumption of compound symmetry untenable. 
+
 
 ```{r Plots, echo=F}
 # one line for everyone
@@ -129,10 +172,7 @@ p  + geom_smooth(group = 0, method = "lm", data = subset(dat, dat$treat == 0), f
 
 ```
 
-
-## Fit models
-
-### Intercept only model
+## Intercept only model
 
 ```{r Intercept only}
 int.only <- lmer(y ~ 1 + (1 | id), data = dat)
@@ -141,38 +181,6 @@ logLik(int.only)
 performance::icc(int.only) 
 p + geom_smooth(method = "lm", formula = y ~ 1, se = F)
 ```
-
-### Level 1 (time) and level 2 (treatment) predictors plus interaction between time and treatment
-
-```{r Interaction effect}
-inter <- lme(y ~ t + treat + t:treat, random =~ 1 + time | id, data = dat)
-summary(inter)
-```
-
-### Bayesian hypothesis testing about the interaction coefficient
-
-In this section, I test whether the treatment has an effect on the symptom trajectory over time. I formulate and test three competing hypotheses about the interaction coefficient $\beta_3$ against each other, their complements and the unconstrained hypothesis $H_u$ which does not postulate any constraints on the parameter. 
-
-$$H_1: \beta_3 > 0 \\
-H_1: \beta_3 < 0 \\
-H_2: \beta_3 = 0 \\
-H_u: \beta_3$$
-
-
-```{r Bain}
-
-est <- inter$coefficients$fixed
-#covmat <- vcov.lmerMod(inter2)
-#coef(inter)
-
-sig <- list(as.matrix(inter$varFix[4,4]))
-
-result <- bain(est[4], hypotheses <- "time:treat>0;time:treat<0;time:treat=0", n=N*n, Sigma = sig, group_parameters = 1)
-result
-```
-
-The resulting Bayes Factors tell us that $H_1$ is the hypothesis most likely to be true out of the set of considered hypotheses. We therefore conclude that in the treatment group ($X_1$), the symptom level increases more over time compared to the control group ($X_0$).
-
 
 --------------------------------------------------------------------------------
 
