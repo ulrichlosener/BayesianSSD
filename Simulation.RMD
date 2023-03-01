@@ -53,7 +53,7 @@ sigmasq.e <- 1  # error variance
 y <- rep(NA, N)  # data storage
 t <- rep(d, N)
 id <- rep(seq_len(N), each=n)
-treat <- rep(c(rep(0, n), rep(1, n)), N*n)
+treat <- rep(c(rep(0, n), rep(1, n)), N/2)
 dat0 <- data.frame(id, treat, t)
 
 beta0 <- rep(0, N*n) # average y at t0 for x=0
@@ -62,7 +62,7 @@ beta2 <- rep(.2, N*n) # average difference in slopes between conditions
 
 #set.seed(123)      # for reproducibility
 
-m <- 100          # number of datasets
+m <- 10         # number of datasets
 sets <- vector("list", m)     # storage for datasets
 est <- matrix(c(seq(1:m)), nrow = m, ncol = 2) # storage for fixed estimates
 colnames(est) <- c("dataset", "t:treat")
@@ -87,7 +87,9 @@ for (i in 1:m) {
   est[i,2] <- inter$coefficients$fixed[3]
   sig <- list(as.matrix(inter$varFix[3,3]))
   
-  result <- bain(est[i,2], hypotheses <- "t:treat>0;t:treat<0", n=N, Sigma = sig, group_parameters = 1)
+  
+  
+  result <- bain(est[i,2], hypotheses <- "t:treat>0;t:treat<0", n=N, Sigma = sig, group_parameters = 1, joint_parameters = 0)
   
   bf12[i] <- result$BFmatrix[1,2]
   bf.u[i] <- result$fit$BF.u[1]
