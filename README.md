@@ -1,6 +1,6 @@
 # Bayesian Sample Size Determination for Multilevel Models with Longitudinal Data
 
-The file "Simulation.RMD" contains simulated multilevel data to which a multilevel model is fitted. Hypotheses about the parameter of the interaction coefficient ($\beta_2$) are tested using Bayesian techniques.
+The file "Simulation.RMD" contains simulated multilevel data to which a multilevel model is fitted. Hypotheses about the parameter of the interaction coefficient ($\beta_2$) are tested using Bayesian techniques. The pdf files contain plots produced by the simulation of different paramters of the Bayes Factor in relation to sample size for $\beta_2=1$. The competing hypotheses are: $H_1: \beta_2>0 \\ H_2: \beta_2=0$ \\
 
 ## Data generation
 
