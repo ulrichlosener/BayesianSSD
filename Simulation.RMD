@@ -34,112 +34,121 @@ conflicts_prefer(dplyr::select)
 ```{r Data Generation}
 start <- Sys.time()
 
+
+
 true.hyp <- 1 # which hypothesis is true? H1: b>0; H2: b=0
+n.steps <- 20 # number of different Ns to evaluate 
 
-mbf12 <- numeric(10)
-mbf21 <- numeric(10)
-mbf.u <- numeric(10)
-mbf.c <- numeric(10)
-mpmp.a <- numeric(10)
-mpmp.b <- numeric(10)
-mpmp.c <- numeric(10)
 
-medbf12 <- numeric(10)
-quantbf12 <- numeric(10)
-prop.bf12 <- numeric(10)
-medbf21 <- numeric(10)
-medbf.u <- numeric(10)
-medbf.c <- numeric(10)
-medpmp.a <- numeric(10)
-medpmp.b <- numeric(10)
-medpmp.c <- numeric(10)
+mbf12 <- numeric(n.steps)
+mbf21 <- numeric(n.steps)
+mbf.u <- numeric(n.steps)
+mbf.c <- numeric(n.steps)
+mpmp.a <- numeric(n.steps)
+mpmp.b <- numeric(n.steps)
+mpmp.c <- numeric(n.steps)
 
-set.seed(1234)      # for reproducibility
-seeds <- vector("list", 10) 
+medbf12 <- numeric(n.steps)
+quantbf12 <- numeric(n.steps)
+prop.bf12 <- numeric(n.steps)
+medbf21 <- numeric(n.steps)
+medbf.u <- numeric(n.steps)
+medbf.c <- numeric(n.steps)
+medpmp.a <- numeric(n.steps)
+medpmp.b <- numeric(n.steps)
+medpmp.c <- numeric(n.steps)
 
-for(j in 1:10){
-  
-  N <- 50        # number of subjects
-  d <- c(0,1,2,3,4) # time of measurements
-  n <- length(d)    # number of measurements per subject
-  
-  sigmasq.u0 <- 1   # variance of individual deviation from treatment intercept 
-  sigmasq.u1 <- 1   # variance of individual deviation from treatment slope
-  sigma.u0.u1 <- 0  # covariance between sigmasq.u0 and sigmasq.u1. If positive, then individuals with higher(lower) initial values tend to have a higher (lower) rate of change over time.
-  sigmasq.e <- 1    # error variance
-  
-  # create data vectors
-  y <- rep(NA, N)   # data storage
-  t <- rep(d, N)
-  id <- rep(seq_len(N), each=n)
-  treat <- rep(c(rep(0, n), rep(1, n)), N/2)
-  dat0 <- data.frame(id, treat, t)
-  
-  beta0 <- rep(0, N*n) # average y at t0 for x=0
-  beta1 <- rep(0, N*n) # average increase for x=0
-  beta2 <- ifelse(true.hyp==1, rep(j/5, N*n), rep(0, N*n)) # average difference in slopes between conditions
-  
-  eff.size <- beta2/sqrt(sigmasq.u1)
-  
-  m <- 1000 # number of datasets
-  sets <- vector("list", m) # storage for datasets
-  est <- matrix(c(seq(1:m)), nrow = m, ncol = 2) # storage for fixed estimates
-  colnames(est) <- c("dataset", "t:treat")
-  
-  bf12 <- numeric(m) # storage for BFs
-  bf21 <- numeric(m)
-  bf.u <- numeric(m) # storage for BFs
-  bf.c <- numeric(m) # storage for BFs
-  pmp.a <- numeric(m) # storage for BFs
-  pmp.b <- numeric(m) # storage for BFs
-  pmp.c <- numeric(m) # storage for BFs
+#set.seed(1234)      # for reproducibility
+seeds <- vector("list", n.steps) 
 
-  for (i in 1:m) {
-    seeds[[i]] <- .Random.seed
-    multinorm <- mvrnorm(n=N, mu=c(0,0), matrix(c(sigmasq.u0, sigma.u0.u1, sigma.u0.u1, sigmasq.u1), nrow=2, ncol=2)) # draw individual deviation from treatment intercept and slope from a multivariate normal distribution with mean 0.
-    u0 <- rep(multinorm[,1], each=n)
-    u1 <- rep(multinorm[,2], each=n)
-    e <- rnorm(N*n, 0, sqrt(sigmasq.e))
+#while (quantbf12<.8) {
+  
+  
+  for(j in 1:n.steps){
     
-    y <- beta0 + u0 + beta1*t + beta2*treat*t + u1*t + e
-    dat <- data.frame(dat0, y)
-    sets[[i]] <- dat
+    N <- j*5        # number of subjects
+    d <- c(0,1,2,3,4) # time of measurements
+    n <- length(d)    # number of measurements per subject
     
-    inter <- lme(y ~ t + t:treat, random =~ t - 1 | id, data = dat)
-    #, control = lmeControl(msMaxIter = 1000, msMaxEval = 1000))
-    est[i,2] <- inter$coefficients$fixed[3]
-    sig <- list(as.matrix(inter$varFix[3,3]))
+    sigmasq.u0 <- 1   # variance of individual deviation from treatment intercept 
+    sigmasq.u1 <- 1   # variance of individual deviation from treatment slope
+    sigma.u0.u1 <- 0  # covariance between sigmasq.u0 and sigmasq.u1. If positive, then individuals with higher(lower) initial values tend to have a higher (lower) rate of change over time.
+    sigmasq.e <- 1    # error variance
     
-    result <- bain(est[i,2], hypotheses <- "t:treat>0;t:treat=0", n=N, Sigma = sig, group_parameters = 1, joint_parameters = 0)
+    # create data vectors
+    y <- rep(NA, N)   # data storage
+    t <- rep(d, N)
+    id <- rep(seq_len(N), each=n)
+    treat <- rep(rbinom(N,1,.5), each=n)
+    dat0 <- data.frame(id, treat, t)
     
-    bf12[i] <- result$BFmatrix[1,2]
-    bf21[i] <- result$BFmatrix[2,1]
-    bf.u[i] <- result$fit$BF.u[1]
-    bf.c[i] <- result$fit$BF.c[1]
-    pmp.a[i] <- result$fit$PMPa[1]
-    pmp.b[i] <- result$fit$PMPb[1]
-    pmp.c[i] <- result$fit$PMPc[1]
+    beta0 <- rep(0, N*n) # average y at t0 for x=0
+    beta1 <- rep(0, N*n) # average increase for x=0
+    beta2 <- ifelse(true.hyp==1, rep(1, N*n), rep(0, N*n)) # average difference in slopes between conditions
+    
+    eff.size <- beta2/sqrt(sigmasq.u1)
+    
+    m <- 1000 # number of datasets
+    sets <- vector("list", m) # storage for datasets
+    est <- matrix(c(seq(1:m)), nrow = m, ncol = 2) # storage for fixed estimates
+    colnames(est) <- c("dataset", "t:treat")
+    
+    bf12 <- numeric(m) # storage for BFs
+    bf21 <- numeric(m)
+    bf.u <- numeric(m) # storage for BFs
+    bf.c <- numeric(m) # storage for BFs
+    pmp.a <- numeric(m) # storage for BFs
+    pmp.b <- numeric(m) # storage for BFs
+    pmp.c <- numeric(m) # storage for BFs
+  
+    for (i in 1:m) {
+      seeds[[i]] <- .Random.seed
+      multinorm <- mvrnorm(n=N, mu=c(0,0), matrix(c(sigmasq.u0, sigma.u0.u1, sigma.u0.u1, sigmasq.u1), nrow=2, ncol=2)) # draw individual deviation from treatment intercept and slope from a multivariate normal distribution with mean 0.
+      u0 <- rep(multinorm[,1], each=n)
+      u1 <- rep(multinorm[,2], each=n)
+      e <- rnorm(N*n, 0, sqrt(sigmasq.e))
+      
+      y <- beta0 + u0 + beta1*t + beta2*treat*t + u1*t + e
+      dat <- data.frame(dat0, y)
+      sets[[i]] <- dat
+      
+      inter <- lme(y ~ t + t:treat, random =~ t - 1 | id, data = dat)
+      #, control = lmeControl(msMaxIter = 1000, msMaxEval = 1000))
+      est[i,2] <- inter$coefficients$fixed[3]
+      sig <- list(as.matrix(inter$varFix[3,3]))
+      
+      result <- bain(est[i,2], hypotheses <- "t:treat>0;t:treat=0", n=N, Sigma = sig, group_parameters = 1, joint_parameters = 0)
+      
+      bf12[i] <- result$BFmatrix[1,2]
+      bf21[i] <- result$BFmatrix[2,1]
+      bf.u[i] <- result$fit$BF.u[1]
+      bf.c[i] <- result$fit$BF.c[1]
+      pmp.a[i] <- result$fit$PMPa[1]
+      pmp.b[i] <- result$fit$PMPb[1]
+      pmp.c[i] <- result$fit$PMPc[1]
+    }
+     
+    mbf12[j] <- mean(bf12)
+    mbf21[j] <- mean(bf21)
+    mbf.u[j] <- mean(bf.u)
+    mbf.c[j] <- mean(bf.c)
+    mpmp.a[j] <- mean(pmp.a)
+    mpmp.b[j] <- mean(pmp.b)
+    mpmp.c[j] <- mean(pmp.c)
+    
+    medbf12[j] <- median(bf12)
+    quantbf12[j] <- quantile(bf12, probs=0.2)
+    prop.bf12[j] <- length(bf12[bf12>3])/m
+    medbf21[j] <- median(bf21)
+    medbf.u[j] <- median(bf.u)
+    medbf.c[j] <- median(bf.c)
+    medpmp.a[j] <- median(pmp.a)
+    medpmp.b[j] <- median(pmp.b)
+    medpmp.c[j] <- median(pmp.c)
   }
-   
-  mbf12[j] <- mean(bf12)
-  mbf21[j] <- mean(bf21)
-  mbf.u[j] <- mean(bf.u)
-  mbf.c[j] <- mean(bf.c)
-  mpmp.a[j] <- mean(pmp.a)
-  mpmp.b[j] <- mean(pmp.b)
-  mpmp.c[j] <- mean(pmp.c)
-  
-  medbf12[j] <- median(bf12)
-  quantbf12[j] <- quantile(bf12, probs=0.2)
-  prop.bf12[j] <- length(bf12[bf12>3])/1000
-  medbf21[j] <- median(bf21)
-  medbf.u[j] <- median(bf.u)
-  medbf.c[j] <- median(bf.c)
-  medpmp.a[j] <- median(pmp.a)
-  medpmp.b[j] <- median(pmp.b)
-  medpmp.c[j] <- median(pmp.c)
-}
 
+#}
+  
 print(Sys.time() - start) # 2 mins for N=10-100 and m=1000
 ```
 
@@ -148,30 +157,31 @@ print(Sys.time() - start) # 2 mins for N=10-100 and m=1000
 ```{r}
 # results in data frame
 
-samplesize <- seq(10, N, 10)
-simres <- data.frame(samplesize,mbf12,mbf21,mbf.u,mbf.c,mpmp.a,mpmp.b,mpmp.c)
 
-beta.seq <- seq(.2, 2, .2)
+plot(quantbf12, type="l")
+simres <- data.frame(samplesize,mbf12,mbf21,mbf.u,mbf.c,mpmp.a,mpmp.b,mpmp.c)
+ss.seq <- seq(5, N, 5)
+beta.seq <- seq(.1, 1, .1)
 
 #ggplot(data=simres) + geom_line(mapping=aes(x=samplesize, y=mbf12, col="blue")) + geom_line(mapping=aes(x=samplesize, y=mbf21, col="red"))  
 
 par(mfrow=c(2,2))
-plot(x=seq(10,100,10), y=mbf12, type="l", xlab="N", ylab="mean BF12")
-plot(x=seq(10,100,10), y=mbf21, type="l", xlab="N", ylab="mean BF21")
-plot(x=seq(10,100,10), y=mbf.u, type="l", xlab="N", ylab="mean BF unconstr.")
-plot(x=seq(10,100,10), y=mbf.c, type="l", xlab="N", ylab="mean BF complement")
+plot(x=ss.seq, y=mbf12, type="l", xlab="N", ylab="mean BF12")
+plot(x=ss.seq, y=mbf21, type="l", xlab="N", ylab="mean BF21")
+plot(x=ss.seq, y=mbf.u, type="l", xlab="N", ylab="mean BF unconstr.")
+plot(x=ss.seq, y=mbf.c, type="l", xlab="N", ylab="mean BF complement")
 
 par(mfrow=c(2,2))
-plot(x=beta.seq, y=medbf12, type="l", xlab="Beta2", ylab="median BF12")
-plot(x=beta.seq, y=medbf21, type="l", xlab="Beta2", ylab="median BF21")
-plot(x=beta.seq, y=medbf.u, type="l", xlab="Beta2", ylab="median BF unconstr.")
-plot(x=beta.seq, y=medbf.c, type="l", xlab="Beta2", ylab="median BF complement")
+plot(x=ss.seq, y=medbf12, type="l", xlab="N", ylab="median BF12")
+plot(x=ss.seq, y=medbf21, type="l", xlab="N", ylab="median BF21")
+plot(x=ss.seq, y=medbf.u, type="l", xlab="N", ylab="median BF unconstr.")
+plot(x=ss.seq, y=medbf.c, type="l", xlab="N", ylab="median BF complement")
 
 par(mfrow=c(2,2))
-plot(x=seq(10,100,10), y=mpmp.a, type="l", xlab="N", ylab="mean PMPa")
-plot(x=seq(10,100,10), y=mpmp.b, type="l", xlab="N", ylab="mean PMPb")
-plot(x=seq(10,100,10), y=mpmp.c, type="l", xlab="N", ylab="mean PMPc")
-plot(x=beta.seq, y=prop.bf12, type="l", xlab="Beta2", ylab="proportion of BFs larger 3")
+plot(x=ss.seq, y=mpmp.a, type="l", xlab="N", ylab="mean PMPa")
+plot(x=ss.seq, y=mpmp.b, type="l", xlab="N", ylab="mean PMPb")
+plot(x=ss.seq, y=mpmp.c, type="l", xlab="N", ylab="mean PMPc")
+plot(x=ss.seq, y=prop.bf12, type="l", xlab="N", ylab="proportion of BFs larger 3")
 abline(h=.8, col="red")
 
 ```
@@ -192,15 +202,15 @@ plot(x=seq(10,100,10), y=mbf.c, type="l", xlab="N", ylab="mean BF complement")
 dev.off()
 
 
-pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/medBF_bet_N=100.pdf",   
+pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/medBF_N.pdf",   
     width = 6, # The width of the plot in inches
     height = 6) # The height of the plot in inches
 
 par(mfrow=c(2,2))
-plot(x=beta.seq, y=medbf12, type="l", xlab="Beta2", ylab="median BF12")
-plot(x=beta.seq, y=medbf21, type="l", xlab="Beta2", ylab="median BF21")
-plot(x=beta.seq, y=medbf.u, type="l", xlab="Beta2", ylab="median BF unconstr.")
-plot(x=beta.seq, y=medbf.c, type="l", xlab="Beta2", ylab="median BF complement")
+plot(x=ss.seq, y=medbf12, type="l", xlab="N", ylab="median BF12")
+plot(x=ss.seq, y=medbf21, type="l", xlab="N", ylab="median BF21")
+plot(x=ss.seq, y=medbf.u, type="l", xlab="N", ylab="median BF unconstr.")
+plot(x=ss.seq, y=medbf.c, type="l", xlab="N", ylab="median BF complement")
 
 dev.off()
 
@@ -213,21 +223,20 @@ par(mfrow=c(2,2))
 plot(x=seq(10,100,10), y=mpmp.a, type="l", xlab="N", ylab="mean PMPa")
 plot(x=seq(10,100,10), y=mpmp.b, type="l", xlab="N", ylab="mean PMPb")
 plot(x=seq(10,100,10), y=mpmp.c, type="l", xlab="N", ylab="mean PMPc")
-plot(x=seq(10,100,10), y=prop.bf12, type="l", xlab="N", main="Proportion of BFs larger than 3")
+plot(x=ss.seq, y=prop.bf12, type="l", xlab="N", ylab="Proportion of BFs larger than 3")
 abline(h=.8, col="red")
 
 dev.off()
 
-pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/Prop.BFs3_bet_N=100.pdf",   
+
+pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/Prop.BFs3_N_H0.pdf",   
     width = 6, # The width of the plot in inches
     height = 6) # The height of the plot in inches
 
-plot(x=beta.seq, y=prop.bf12, type="l", xlab="Beta2", ylab="proportion of BFs larger 3")
+plot(x=ss.seq, y=prop.bf12, type="l", xlab="N", ylab="proportion of BFs larger 3")
 abline(h=.8, col="red")
 
 dev.off()
-
-
 
 ```
 
