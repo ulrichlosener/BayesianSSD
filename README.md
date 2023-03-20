@@ -26,11 +26,13 @@ $$Y_{ti} = \beta_0 + u_{0i} + \beta_1 T_t + \beta_2 X_i T_t + u_{1i} T_t + e_{ij
 Here, $\beta_0$ represents the average value for y at $t_0$ and $\beta_1$ the average rate of change for subjects in the control condition. The average difference in the rate of change of y scores of subjects in the control condition (relative to those in the treatment condition) is represented by $\beta_2$. Thus, $\beta_2$ denotes the interaction between time and treatment, indicating the difference in slopes between the two treatment groups. To test whether a treatment intervention has an effect on symptom level, this is the parameter of interest. 
 
 The population distribution of $u_{0i}$ and $u_{1i}$ is assumed to be bivariate normal $N(0, \Sigma_u)$ with
+```math
 $$\Sigma_u = 
 \begin{bmatrix} 
 \sigma^2_{u0} & \sigma_{u0u1} \\
 \sigma_{u0u1} & \sigma^2_{u1}
 \end{bmatrix}$$
+```
 
 test  
 
