@@ -109,7 +109,7 @@ for(j in 1:n.steps){
     dat <- data.frame(dat0, y)
     sets[[i]] <- dat
     
-    inter <- lme(y ~ t + t:treat, random =~ t | id, data = dat, control = lmeControl(opt="optim", msMaxIter=1000, msMaxEval=1000))
+    inter <- lme(y ~ t + t:treat, random =~ t | id, data = dat, control = lmeControl(opt="optim"))
     est[i,2] <- inter$coefficients$fixed[3]
     sig <- list(as.matrix(inter$varFix[3,3]))
     
