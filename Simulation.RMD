@@ -35,37 +35,47 @@ conflicts_prefer(dplyr::select)
 start <- Sys.time()
 
 
-true.hyp <- 1 # which hypothesis is true? H1: b>0; H2: b=0
-n.steps <- 20 # number of different Ns to evaluate 
+true.hyp <- 1 # which hypothesis is true? H0: b=0; H1: b>0
+n.steps <- 20 # number of different sample sizes to evaluate 
+m <- 100 # number of datasets
 
+mbf10 <- numeric(n.steps) # storage for mean BFs 
+mbf01 <- numeric(n.steps) # storage for mean BFs 
+mbf.u <- numeric(n.steps) # storage for mean BFs 
+mbf.c <- numeric(n.steps) # storage for mean BFs
+mpmp.a <- numeric(n.steps) # storage for mean PMPs
+mpmp.b <- numeric(n.steps) # storage for mean PMPs
+mpmp.c <- numeric(n.steps) # storage for mean PMPs
 
-mbf12 <- numeric(n.steps)
-mbf21 <- numeric(n.steps)
-mbf.u <- numeric(n.steps)
-mbf.c <- numeric(n.steps)
-mpmp.a <- numeric(n.steps)
-mpmp.b <- numeric(n.steps)
-mpmp.c <- numeric(n.steps)
+quantbf10 <- numeric(n.steps) # storage for quantiles in vectors containing BFs
+prop.bf10 <- numeric(n.steps) # storage for proportions of BFs exceeding a certain threshold
+prop.bf01 <- numeric(n.steps) # storage for proportions of BFs exceeding a certain threshold
+medbf10 <- numeric(n.steps) # storage for median BFs
+medbf01 <- numeric(n.steps) # storage for median BFs
+medbf.u <- numeric(n.steps) # storage for median BFs
+medbf.c <- numeric(n.steps) # storage for median BFs
+medpmp.a <- numeric(n.steps) # storage for median PMPs
+medpmp.b <- numeric(n.steps) # storage for median PMPs
+medpmp.c <- numeric(n.steps) # storage for median PMPs
 
-medbf12 <- numeric(n.steps)
-quantbf12 <- numeric(n.steps)
-prop.bf12 <- numeric(n.steps)
-medbf21 <- numeric(n.steps)
-medbf.u <- numeric(n.steps)
-medbf.c <- numeric(n.steps)
-medpmp.a <- numeric(n.steps)
-medpmp.b <- numeric(n.steps)
-medpmp.c <- numeric(n.steps)
+ss.seq <- rep(NA, n.steps)
+
+models <- vector("list", n.steps)
+
+for(i in 1:n.steps){
+  models[[i]] <- vector("list", m)
+}
 
 #set.seed(1234)      # for reproducibility
-seeds <- vector("list", n.steps) 
+#seeds <- vector("list", n.steps) 
 
 
 for(j in 1:n.steps){
   
-  N <- j*5+15        # number of subjects
+  N <- j*4+16        # number of subjects
   d <- c(0,1,2,3,4) # time of measurements
   n <- length(d)    # number of measurements per subject
+  ss.seq[j] <- N
   
   sigmasq.u0 <- 1   # variance of individual deviation from treatment intercept 
   sigmasq.u1 <- 1   # variance of individual deviation from treatment slope
@@ -76,30 +86,25 @@ for(j in 1:n.steps){
   y <- rep(NA, N)   # data storage
   t <- rep(d, N)
   id <- rep(seq_len(N), each=n)
-  treat <- rep(rbinom(N,1,.5), each=n)
+  treat <- rep(c(rep(0,n), rep(1,n)), N/2)
   dat0 <- data.frame(id, treat, t)
   
-  beta0 <- rep(0, N*n) # average y at t0 for x=0
+  beta0 <- rep(0, N*n) # average y at t0 
   beta1 <- rep(0, N*n) # average increase for x=0
-  beta2 <- ifelse(true.hyp==1, rep(.8, N*n), rep(0, N*n)) # average difference in slopes between conditions
+  beta2 <- ifelse(true.hyp==1, rep(.5, N*n), rep(0, N*n)) # average difference in slopes between conditions
   
-  eff.size <- beta2/sqrt(sigmasq.u1)
+  #eff.size <- beta2/sqrt(sigmasq.u1)
   
-  m <- 1000 # number of datasets
-  sets <- vector("list", m) # storage for datasets
-  est <- matrix(c(seq(1:m)), nrow = m, ncol = 2) # storage for fixed estimates
-  colnames(est) <- c("dataset", "t:treat")
-  
-  bf12 <- numeric(m) # storage for BFs
-  bf21 <- numeric(m)
+  bf10 <- numeric(m) # storage for BFs
+  bf01 <- numeric(m) # storage for BFs
   bf.u <- numeric(m) # storage for BFs
   bf.c <- numeric(m) # storage for BFs
-  pmp.a <- numeric(m) # storage for BFs
-  pmp.b <- numeric(m) # storage for BFs
-  pmp.c <- numeric(m) # storage for BFs
+  pmp.a <- numeric(m) # storage for PMPs
+  pmp.b <- numeric(m) # storage for PMPs
+  pmp.c <- numeric(m) # storage for PMPs
 
   for (i in 1:m) {
-    seeds[[i]] <- .Random.seed
+    #seeds[[i]] <- .Random.seed
     multinorm <- mvrnorm(n=N, mu=c(0,0), matrix(c(sigmasq.u0, sigma.u0.u1, sigma.u0.u1, sigmasq.u1), nrow=2, ncol=2)) # draw individual deviation from treatment intercept and slope from a multivariate normal distribution with mean 0.
     u0 <- rep(multinorm[,1], each=n)
     u1 <- rep(multinorm[,2], each=n)
@@ -107,16 +112,19 @@ for(j in 1:n.steps){
     
     y <- beta0 + u0 + beta1*t + beta2*treat*t + u1*t + e
     dat <- data.frame(dat0, y)
-    sets[[i]] <- dat
     
-    inter <- lme(y ~ t + t:treat, random =~ t | id, data = dat, control = lmeControl(opt="optim"))
-    est[i,2] <- inter$coefficients$fixed[3]
-    sig <- list(as.matrix(inter$varFix[3,3]))
+    #inter <- lme(y ~ t + t:treat, random =~ t | id, data = dat, control = lmeControl(opt="optim"))
+    models[[j]][[i]] <- lmer(y ~ t + t:treat + (t | id), data = dat)
+    if (isSingular(models[[j]][[i]])) {next}
     
-    result <- bain(est[i,2], hypotheses <- "t:treat>0;t:treat=0", n=N, Sigma = sig, group_parameters = 1, joint_parameters = 0)
+    est <- models[[j]][[i]]@beta[3]
+    names(est) <- c("t:treat")
+    sig <- list(as.matrix(vcov(models[[j]][[i]])[3,3]))
     
-    bf12[i] <- result$BFmatrix[1,2]
-    bf21[i] <- result$BFmatrix[2,1]
+    result <- bain(est, hypotheses <- "t:treat>0;t:treat=0", n = N, Sigma = sig, group_parameters = 1, joint_parameters = 0) # double check whether group and joint pars are correct
+    
+    bf10[i] <- result$BFmatrix[1,2]
+    bf01[i] <- result$BFmatrix[2,1]
     bf.u[i] <- result$fit$BF.u[1]
     bf.c[i] <- result$fit$BF.c[1]
     pmp.a[i] <- result$fit$PMPa[1]
@@ -124,48 +132,57 @@ for(j in 1:n.steps){
     pmp.c[i] <- result$fit$PMPc[1]
   }
    
-  mbf12[j] <- mean(bf12)
-  mbf21[j] <- mean(bf21)
+  mbf10[j] <- mean(bf10)
+  mbf01[j] <- mean(bf01)
   mbf.u[j] <- mean(bf.u)
   mbf.c[j] <- mean(bf.c)
   mpmp.a[j] <- mean(pmp.a)
   mpmp.b[j] <- mean(pmp.b)
   mpmp.c[j] <- mean(pmp.c)
   
-  medbf12[j] <- median(bf12)
-  quantbf12[j] <- quantile(bf12, probs=0.2)
-  prop.bf12[j] <- length(bf12[bf12>3])/m
-  medbf21[j] <- median(bf21)
+  medbf10[j] <- median(bf10)
+  quantbf10[j] <- quantile(bf10, probs=0.2)
+  prop.bf10[j] <- length(bf10[bf10>3])/m
+  prop.bf01[j] <- length(bf01[bf01>3])/m
+  medbf01[j] <- median(bf01)
   medbf.u[j] <- median(bf.u)
   medbf.c[j] <- median(bf.c)
   medpmp.a[j] <- median(pmp.a)
   medpmp.b[j] <- median(pmp.b)
   medpmp.c[j] <- median(pmp.c)
   
-  if (max(prop.bf12>.8)) {break}
+  if (max(prop.bf10>.8)) {break}
 }
 
 print(Sys.time() - start) # 2 mins for N=10-100 and m=1000
 print(N)
 
+# marker <- rep(NA, m)
+# for(i in 1:m){
+#   marker[i] <- ifelse(isSingular(models[[20]][[i]]), 1, 0)
+# }
+
+
+```
+
+```{r}
+av.est <- rep(NA, n.steps)
+for(i in 1:n.steps){
+av.est[i] <- models[[i]][[1]]@beta[3]
+}
 ```
 
 
-
 ```{r}
-
-ss.seq <- seq(from=25, to=N, by=5)
-beta.seq <- seq(.1, 1, .1)
-
 # par(mfrow=c(2,2))
-# plot(x=ss.seq, y=mbf12[1:length(ss.seq)], type="l", xlab="N", ylab="mean BF12")
-# plot(x=ss.seq, y=mbf21[1:length(ss.seq)], type="l", xlab="N", ylab="mean BF21")
+# plot(x=ss.seq, y=mbf10[1:length(ss.seq)], type="l", xlab="N", ylab="mean BF12")
+# plot(x=ss.seq, y=mbf01[1:length(ss.seq)], type="l", xlab="N", ylab="mean BF21")
 # plot(x=ss.seq, y=mbf.u[1:length(ss.seq)], type="l", xlab="N", ylab="mean BF unconstr.")
 # plot(x=ss.seq, y=mbf.c[1:length(ss.seq)], type="l", xlab="N", ylab="mean BF complement")
 
 par(mfrow=c(2,2))
-plot(x=ss.seq, y=medbf12[1:length(ss.seq)], type="l", xlab="N", ylab="median BF12")
-plot(x=ss.seq, y=medbf21[1:length(ss.seq)], type="l", xlab="N", ylab="median BF21")
+plot(x=ss.seq, y=medbf10[1:length(ss.seq)], type="l", xlab="N", ylab="median BF10")
+plot(x=ss.seq, y=medbf01[1:length(ss.seq)], type="l", xlab="N", ylab="median BF01")
 plot(x=ss.seq, y=medbf.u[1:length(ss.seq)], type="l", xlab="N", ylab="median BF unconstr.")
 plot(x=ss.seq, y=medbf.c[1:length(ss.seq)], type="l", xlab="N", ylab="median BF complement")
 
@@ -173,7 +190,7 @@ par(mfrow=c(2,2))
 plot(x=ss.seq, y=mpmp.a[1:length(ss.seq)], type="l", xlab="N", ylab="mean PMPa")
 plot(x=ss.seq, y=mpmp.b[1:length(ss.seq)], type="l", xlab="N", ylab="mean PMPb")
 plot(x=ss.seq, y=mpmp.c[1:length(ss.seq)], type="l", xlab="N", ylab="mean PMPc")
-plot(x=ss.seq, y=prop.bf12[1:length(ss.seq)], type="l", xlab="N", ylab="proportion of BFs larger 3")
+plot(x=ss.seq, y=prop.bf10[1:length(ss.seq)], type="l", xlab="N", ylab="proportion of BFs larger 3")
 abline(h=.8, col="red")
 
 ```
