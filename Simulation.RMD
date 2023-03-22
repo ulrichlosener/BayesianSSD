@@ -31,12 +31,12 @@ conflicts_prefer(lme4::lmer) # tell R to prefer lme4 over lmer
 conflicts_prefer(dplyr::select)
 ```
 
+
 ```{r Data Generation}
 start <- Sys.time()
 
-
 true.hyp <- 1 # which hypothesis is true? H0: b=0; H1: b>0
-n.steps <- 20 # number of different sample sizes to evaluate 
+n.steps <- 1 # number of different sample sizes to evaluate 
 m <- 100 # number of datasets
 
 mbf10 <- numeric(n.steps) # storage for mean BFs 
@@ -60,27 +60,33 @@ medpmp.c <- numeric(n.steps) # storage for median PMPs
 
 ss.seq <- rep(NA, n.steps)
 
-models <- vector("list", n.steps)
-
-for(i in 1:n.steps){
-  models[[i]] <- vector("list", m)
-}
+models <- rep(list(rep(vector("list", m))),n.steps)
 
 #set.seed(1234)      # for reproducibility
 #seeds <- vector("list", n.steps) 
 
+d <- c(0,1,2,3,4) # time of measurements
+n <- length(d)    # number of measurements per subject
+
+sigmasq.u0 <- 1   # variance of individual deviation from treatment intercept 
+sigmasq.u1 <- 1   # variance of individual deviation from treatment slope
+sigma.u0.u1 <- 0  # covariance between sigmasq.u0 and sigmasq.u1. If positive, then individuals with higher(lower) initial values tend to have a higher (lower) rate of change over time.
+sigmasq.e <- 1    # error variance
+
+#eff.size <- beta2/sqrt(sigmasq.u1)
+
+bf10 <- rep(NA,m) # storage for BFs
+bf01 <- rep(NA,m) # storage for BFs
+bf.u <- rep(NA,m) # storage for BFs
+bf.c <- rep(NA,m) # storage for BFs
+pmp.a <- rep(NA,m) # storage for PMPs
+pmp.b <- rep(NA,m) # storage for PMPs
+pmp.c <- rep(NA,m) # storage for PMPs
 
 for(j in 1:n.steps){
   
   N <- j*4+16        # number of subjects
-  d <- c(0,1,2,3,4) # time of measurements
-  n <- length(d)    # number of measurements per subject
   ss.seq[j] <- N
-  
-  sigmasq.u0 <- 1   # variance of individual deviation from treatment intercept 
-  sigmasq.u1 <- 1   # variance of individual deviation from treatment slope
-  sigma.u0.u1 <- 0  # covariance between sigmasq.u0 and sigmasq.u1. If positive, then individuals with higher(lower) initial values tend to have a higher (lower) rate of change over time.
-  sigmasq.e <- 1    # error variance
   
   # create data vectors
   y <- rep(NA, N)   # data storage
@@ -93,17 +99,7 @@ for(j in 1:n.steps){
   beta1 <- rep(0, N*n) # average increase for x=0
   beta2 <- ifelse(true.hyp==1, rep(.5, N*n), rep(0, N*n)) # average difference in slopes between conditions
   
-  #eff.size <- beta2/sqrt(sigmasq.u1)
-  
-  bf10 <- numeric(m) # storage for BFs
-  bf01 <- numeric(m) # storage for BFs
-  bf.u <- numeric(m) # storage for BFs
-  bf.c <- numeric(m) # storage for BFs
-  pmp.a <- numeric(m) # storage for PMPs
-  pmp.b <- numeric(m) # storage for PMPs
-  pmp.c <- numeric(m) # storage for PMPs
-
-  for (i in 1:m) {
+    for (i in 1:m) {
     #seeds[[i]] <- .Random.seed
     multinorm <- mvrnorm(n=N, mu=c(0,0), matrix(c(sigmasq.u0, sigma.u0.u1, sigma.u0.u1, sigmasq.u1), nrow=2, ncol=2)) # draw individual deviation from treatment intercept and slope from a multivariate normal distribution with mean 0.
     u0 <- rep(multinorm[,1], each=n)
@@ -114,7 +110,7 @@ for(j in 1:n.steps){
     dat <- data.frame(dat0, y)
     
     #inter <- lme(y ~ t + t:treat, random =~ t | id, data = dat, control = lmeControl(opt="optim"))
-    models[[j]][[i]] <- lmer(y ~ t + t:treat + (t | id), data = dat)
+    models[[j]][[i]] <- lmer(y ~ t + t:treat + (t | id), data = dat, control = lmerControl(calc.derivs = F))
     if (isSingular(models[[j]][[i]])) {next}
     
     est <- models[[j]][[i]]@beta[3]
@@ -132,37 +128,60 @@ for(j in 1:n.steps){
     pmp.c[i] <- result$fit$PMPc[1]
   }
    
-  mbf10[j] <- mean(bf10)
-  mbf01[j] <- mean(bf01)
-  mbf.u[j] <- mean(bf.u)
-  mbf.c[j] <- mean(bf.c)
-  mpmp.a[j] <- mean(pmp.a)
-  mpmp.b[j] <- mean(pmp.b)
-  mpmp.c[j] <- mean(pmp.c)
+  mbf10[j] <- mean(bf10, na.rm=T)
+  mbf01[j] <- mean(bf01, na.rm=T)
+  mbf.u[j] <- mean(bf.u, na.rm=T)
+  mbf.c[j] <- mean(bf.c, na.rm=T)
+  mpmp.a[j] <- mean(pmp.a, na.rm=T)
+  mpmp.b[j] <- mean(pmp.b, na.rm=T)
+  mpmp.c[j] <- mean(pmp.c, na.rm=T)
   
-  medbf10[j] <- median(bf10)
-  quantbf10[j] <- quantile(bf10, probs=0.2)
+  medbf10[j] <- median(bf10, na.rm=T)
+  quantbf10[j] <- quantile(bf10, probs=0.2, na.rm=T)
   prop.bf10[j] <- length(bf10[bf10>3])/m
   prop.bf01[j] <- length(bf01[bf01>3])/m
-  medbf01[j] <- median(bf01)
-  medbf.u[j] <- median(bf.u)
-  medbf.c[j] <- median(bf.c)
-  medpmp.a[j] <- median(pmp.a)
-  medpmp.b[j] <- median(pmp.b)
-  medpmp.c[j] <- median(pmp.c)
+  medbf01[j] <- median(bf01, na.rm=T)
+  medbf.u[j] <- median(bf.u, na.rm=T)
+  medbf.c[j] <- median(bf.c, na.rm=T)
+  medpmp.a[j] <- median(pmp.a, na.rm=T)
+  medpmp.b[j] <- median(pmp.b, na.rm=T)
+  medpmp.c[j] <- median(pmp.c, na.rm=T)
   
   if (max(prop.bf10>.8)) {break}
 }
 
-print(Sys.time() - start) # 2 mins for N=10-100 and m=1000
+print(Sys.time() - start) 
 print(N)
 
-# marker <- rep(NA, m)
-# for(i in 1:m){
-#   marker[i] <- ifelse(isSingular(models[[20]][[i]]), 1, 0)
-# }
+marker <- rep(NA, m)
+for(i in 1:m){
+  marker[i] <- ifelse(isSingular(models[[1]][[i]]), 1, 0)
+}
 
 
+badmodels <- models[[1]][marker==1]
+goodmodels <- models[[1]][marker==0]
+
+badest <- rep(NA, length(badmodels))
+badstderr <- rep(NA, length(badmodels))
+for(i in 1:length(badmodels)){
+badest[i] <- badmodels[[i]]@beta[3]
+badstderr[i] <- diag(vcov(badmodels[[i]]))[3]
+}
+
+
+goodest <- rep(NA, length(goodmodels))
+goodstderr <- rep(NA, length(goodmodels))
+for(i in 1:length(goodmodels)){
+goodest[i] <- goodmodels[[i]]@beta[3]
+goodstderr[i] <- diag(vcov(goodmodels[[i]]))[3]
+
+}
+
+summary(goodest)
+summary(goodstderr)
+summary(badest)
+summary(badstderr)
 ```
 
 ```{r}
@@ -170,6 +189,7 @@ av.est <- rep(NA, n.steps)
 for(i in 1:n.steps){
 av.est[i] <- models[[i]][[1]]@beta[3]
 }
+av.est
 ```
 
 
