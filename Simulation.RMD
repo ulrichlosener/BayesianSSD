@@ -17,18 +17,12 @@ First, I call the necessary libraries.
 library(tidyr)       # pipes
 library(dplyr)       # pipes
 library(ggplot2)     # plots
-library(nlme)
 library(lme4)        # fit multilevel model
-library(lmerTest)    # get p-values of multilevel model
-library(conflicted)  # conflicting commands from different packages
 library(merDeriv)    # extracting vcov matrices (vcov.lmerMod)
 library(mgcv)        # extracting vcov matrices
 library(bain)        # Bayesian estimation
 library(MASS)        # multinorm - already included in lme4?
 library(MuMIn)       # for R squared with r.squaredGLMM(inter)
-
-conflicts_prefer(lme4::lmer) # tell R to prefer lme4 over lmer
-conflicts_prefer(dplyr::select)
 ```
 
 
@@ -36,8 +30,9 @@ conflicts_prefer(dplyr::select)
 start <- Sys.time()
 
 true.hyp <- 1 # which hypothesis is true? H0: b=0; H1: b>0
-n.steps <- 1 # number of different sample sizes to evaluate 
-m <- 100 # number of datasets
+n.steps <- 20 # number of different sample sizes to evaluate 
+m <- 1000 # number of datasets
+eff.size <- .8  # effect size (Cohen's d): .2 (small), .5 (medium), .8 (large)
 
 mbf10 <- numeric(n.steps) # storage for mean BFs 
 mbf01 <- numeric(n.steps) # storage for mean BFs 
@@ -62,7 +57,7 @@ ss.seq <- rep(NA, n.steps)
 
 models <- rep(list(rep(vector("list", m))),n.steps)
 
-#set.seed(1234)      # for reproducibility
+set.seed(1234)      # for reproducibility
 #seeds <- vector("list", n.steps) 
 
 d <- c(0,1,2,3,4) # time of measurements
@@ -72,8 +67,6 @@ sigmasq.u0 <- 1   # variance of individual deviation from treatment intercept
 sigmasq.u1 <- 1   # variance of individual deviation from treatment slope
 sigma.u0.u1 <- 0  # covariance between sigmasq.u0 and sigmasq.u1. If positive, then individuals with higher(lower) initial values tend to have a higher (lower) rate of change over time.
 sigmasq.e <- 1    # error variance
-
-#eff.size <- beta2/sqrt(sigmasq.u1)
 
 bf10 <- rep(NA,m) # storage for BFs
 bf01 <- rep(NA,m) # storage for BFs
@@ -89,15 +82,15 @@ for(j in 1:n.steps){
   ss.seq[j] <- N
   
   # create data vectors
-  y <- rep(NA, N)   # data storage
+  y <- rep(NA, N)    # data storage
   t <- rep(d, N)
   id <- rep(seq_len(N), each=n)
-  treat <- rep(c(rep(0,n), rep(1,n)), N/2)
+  treat <- rep(c(rep(0,n), rep(1,n)), N/2) # use gl instead?
   dat0 <- data.frame(id, treat, t)
   
   beta0 <- rep(0, N*n) # average y at t0 
   beta1 <- rep(0, N*n) # average increase for x=0
-  beta2 <- ifelse(true.hyp==1, rep(.5, N*n), rep(0, N*n)) # average difference in slopes between conditions
+  beta2 <- ifelse(true.hyp==1, rep(eff.size*sqrt(sigmasq.u1), N*n), rep(0, N*n)) # average difference in slopes between conditions
   
     for (i in 1:m) {
     #seeds[[i]] <- .Random.seed
@@ -111,7 +104,7 @@ for(j in 1:n.steps){
     
     #inter <- lme(y ~ t + t:treat, random =~ t | id, data = dat, control = lmeControl(opt="optim"))
     models[[j]][[i]] <- lmer(y ~ t + t:treat + (t | id), data = dat, control = lmerControl(calc.derivs = F))
-    if (isSingular(models[[j]][[i]])) {next}
+    #if (isSingular(models[[j]][[i]])) {next} # uncomment if singular models are not to be included
     
     est <- models[[j]][[i]]@beta[3]
     names(est) <- c("t:treat")
@@ -153,11 +146,12 @@ for(j in 1:n.steps){
 print(Sys.time() - start) 
 print(N)
 
+### SINGULARITY DIAGNOSTICS
+
 marker <- rep(NA, m)
 for(i in 1:m){
   marker[i] <- ifelse(isSingular(models[[1]][[i]]), 1, 0)
 }
-
 
 badmodels <- models[[1]][marker==1]
 goodmodels <- models[[1]][marker==0]
@@ -169,27 +163,17 @@ badest[i] <- badmodels[[i]]@beta[3]
 badstderr[i] <- diag(vcov(badmodels[[i]]))[3]
 }
 
-
 goodest <- rep(NA, length(goodmodels))
 goodstderr <- rep(NA, length(goodmodels))
 for(i in 1:length(goodmodels)){
 goodest[i] <- goodmodels[[i]]@beta[3]
 goodstderr[i] <- diag(vcov(goodmodels[[i]]))[3]
-
 }
 
 summary(goodest)
-summary(goodstderr)
 summary(badest)
+summary(goodstderr)
 summary(badstderr)
-```
-
-```{r}
-av.est <- rep(NA, n.steps)
-for(i in 1:n.steps){
-av.est[i] <- models[[i]][[1]]@beta[3]
-}
-av.est
 ```
 
 
