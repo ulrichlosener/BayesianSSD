@@ -4,6 +4,8 @@
 
 The file "Simulation.RMD" contains simulated multilevel data to which a multilevel model is fitted. Hypotheses about the parameter of the interaction coefficient ($\beta_2$) are tested using Bayesian techniques. The pdf files contain plots produced by the simulation of different paramters of the Bayes Factor in relation to sample size for $\beta_2=1$. The competing hypotheses are: $H_1: \beta_2>0$ and $H_2: \beta_2=0$ 
 
+The file "Algorithm2" contains a refinement of the algorithm used in the simulation. Using a binary search, it reduces the amount of necessary iterations to maximally 12 (see Fu, Hoijtink, and Moerbeek, 2020 for a brief overview). 
+
 ## Data generation
 
 In the trajectory of treatment interventions individuals may vary both in their initial symptom level and rate of change over time. That is, people might start out the trial with different severity of their symptoms and some of them might get better while others stay the same or even get worse. Because of random allocation to treatment conditions, the initial (pre-treatment) differences in symptom levels is unrelated to the treatment groups. The further symptom trajectory of an individual, however, depends on which treatment condition they are assigned to. Therefore, I choose a model which accounts for interindividual differences at the first measurement (random intercept) that cannot be explained by the treatment condition and which allows individuals to have different rates of change over time (random slopes). These differences in slopes, in turn, can be (partly) explained by membership of a treatment condition. 
