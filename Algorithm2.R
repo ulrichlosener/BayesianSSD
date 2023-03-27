@@ -18,7 +18,7 @@ bayesian.SSD2 <- function(true.hyp = 1, n.steps = 20, m = 1000, eff.size = .8, t
   true.hyp <- 1   # which hypothesis is true? H0: b=0; H1: b>0
   n.steps <- 100  # number of different sample sizes to evaluate
   m <- 1000       # number of datasets
-  eff.size <- .8  # effect size (Cohen's d): .2 (small), .5 (medium), .8 (large)
+  eff.size <- .2  # effect size (Cohen's d): .2 (small), .5 (medium), .8 (large)
   
   t.points <- c(0,1,2,3,4) # time of measurements
   n <- length(t.points)    # number of measurements per subject
@@ -62,31 +62,32 @@ bayesian.SSD2 <- function(true.hyp = 1, n.steps = 20, m = 1000, eff.size = .8, t
   pmp.b <- rep(NA,m) # storage for PMPs
   pmp.c <- rep(NA,m) # storage for PMPs
   
+  Nmin <- 10
+  Nmax <- 1000
+  
+  N <- numeric(n.steps)
+  
   for(j in 1:n.steps){
     
-    Nmin <- 10
-    Nmax <- 1000
-    N <- (Nmin + Nmax)/2
-    
-    ss.seq[j] <- N
+    N[j] <- round((Nmin + Nmax)/2, digits = 0)
     
     # create data vectors
-    y <- rep(NA, N)    # data storage
-    t <- rep(t.points, N)
-    id <- rep(seq_len(N), each=n)
-    treat <- as.numeric(gl(n=2, k=n, length=N*n, labels=c(0,1)))
+    y <- rep(NA, N[j])    # data storage
+    t <- rep(t.points, N[j])
+    id <- rep(seq_len(N[j]), each=n)
+    treat <- as.numeric(as.character(gl(n=2, k=n, length=N[j]*n, labels=c(0,1))))
     dat0 <- data.frame(id, treat, t)
     
-    beta0 <- rep(0, N*n) # average y at t0 
-    beta1 <- rep(0, N*n) # average increase for x=0
-    beta2 <- ifelse(true.hyp==1, rep(eff.size*sqrt(sigmasq.u1), N*n), rep(0, N*n)) # average difference in slopes between conditions
+    beta0 <- rep(0, N[j]*n) # average y at t0 
+    beta1 <- rep(0, N[j]*n) # average increase for x=0
+    beta2 <- eff.size * sqrt(sigmasq.u1) * rep(true.hyp==1, N[j]*n) # average difference in slopes between conditions
     
     for (i in 1:m) {
       #seeds[[i]] <- .Random.seed
-      multinorm <- mvrnorm(n=N, mu=c(0,0), matrix(c(sigmasq.u0, sigma.u0.u1, sigma.u0.u1, sigmasq.u1), nrow=2, ncol=2)) # draw individual deviation from treatment intercept and slope from a multivariate normal distribution with mean 0.
+      multinorm <- mvrnorm(n=N[j], mu=c(0,0), matrix(c(sigmasq.u0, sigma.u0.u1, sigma.u0.u1, sigmasq.u1), nrow=2, ncol=2)) # draw individual deviation from treatment intercept and slope from a multivariate normal distribution with mean 0.
       u0 <- rep(multinorm[,1], each=n)
       u1 <- rep(multinorm[,2], each=n)
-      e <- rnorm(N*n, 0, sqrt(sigmasq.e))
+      e <- rnorm(N[j]*n, 0, sqrt(sigmasq.e))
       
       y <- beta0 + u0 + beta1*t + beta2*treat*t + u1*t + e
       dat <- data.frame(dat0, y)
@@ -99,7 +100,7 @@ bayesian.SSD2 <- function(true.hyp = 1, n.steps = 20, m = 1000, eff.size = .8, t
       names(est) <- c("t:treat")
       sig <- list(as.matrix(vcov(models[[j]][[i]])[3,3]))
       
-      result <- bain(est, hypotheses <- "t:treat>0;t:treat=0", n = N, Sigma = sig, group_parameters = 1, joint_parameters = 0) # double check whether group and joint pars are correct
+      result <- bain(est, hypotheses <- "t:treat>0;t:treat=0", n = N[j], Sigma = sig, group_parameters = 1, joint_parameters = 0) # double check whether group and joint pars are correct
       
       bf10[i] <- result$BFmatrix[1,2]
       bf01[i] <- result$BFmatrix[2,1]
@@ -129,25 +130,26 @@ bayesian.SSD2 <- function(true.hyp = 1, n.steps = 20, m = 1000, eff.size = .8, t
     medpmp.b[j] <- median(pmp.b, na.rm=T)
     medpmp.c[j] <- median(pmp.c, na.rm=T)
     
-    ifelse (prop.bf10[j]>.8), Nmax <- N, Nmin <- N)
-      
+    print(N[j])
+    if(N[j]==Nmin+1) {break}
+    ifelse (prop.bf10[j]>.8, Nmax <- N[j], Nmin <- N[j])
       
   }
   
   print(Sys.time() - start) 
-  print(N)
+  print(N[j])
   
-  par(mfrow=c(2,4))
-  plot(x=ss.seq, y=medbf10[1:length(ss.seq)], type="l", xlab="N", ylab="median BF10")
-  plot(x=ss.seq, y=medbf01[1:length(ss.seq)], type="l", xlab="N", ylab="median BF01")
-  plot(x=ss.seq, y=medbf.u[1:length(ss.seq)], type="l", xlab="N", ylab="median BF unconstr.")
-  plot(x=ss.seq, y=medbf.c[1:length(ss.seq)], type="l", xlab="N", ylab="median BF complement")
-  
-  plot(x=ss.seq, y=mpmp.a[1:length(ss.seq)], type="l", xlab="N", ylab="mean PMPa")
-  plot(x=ss.seq, y=mpmp.b[1:length(ss.seq)], type="l", xlab="N", ylab="mean PMPb")
-  plot(x=ss.seq, y=mpmp.c[1:length(ss.seq)], type="l", xlab="N", ylab="mean PMPc")
-  plot(x=ss.seq, y=prop.bf10[1:length(ss.seq)], type="l", xlab="N", ylab="proportion of BFs larger 3")
-  abline(h=.8, col="red")
+  # par(mfrow=c(2,4))
+  # plot(x=N, y=medbf10[1:length(N)], type="l", xlab="N", ylab="median BF10")
+  # plot(x=N, y=medbf01[1:length(N)], type="l", xlab="N", ylab="median BF01")
+  # plot(x=N, y=medbf.u[1:length(N)], type="l", xlab="N", ylab="median BF unconstr.")
+  # plot(x=N, y=medbf.c[1:length(N)], type="l", xlab="N", ylab="median BF complement")
+  # 
+  # plot(x=N, y=mpmp.a[1:length(N)], type="l", xlab="N", ylab="mean PMPa")
+  # plot(x=N, y=mpmp.b[1:length(N)], type="l", xlab="N", ylab="mean PMPb")
+  # plot(x=N, y=mpmp.c[1:length(N)], type="l", xlab="N", ylab="mean PMPc")
+  # plot(x=N, y=prop.bf10[1:length(N)], type="l", xlab="N", ylab="proportion of BFs larger 3")
+  # abline(h=.8, col="red")
 }
 
 
