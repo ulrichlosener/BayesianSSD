@@ -74,12 +74,12 @@ bayesian.SSD2 <- function(true.hyp = 1, n.steps = 20, m = 1000, eff.size = .8, t
     # create data vectors
     y <- rep(NA, N[j])    # data storage
     t <- rep(t.points, N[j])
-    id <- rep(seq_len(N[j]), each=n)
+    id <- rep.int(seq_len(N[j]), each=n)
     treat <- as.numeric(as.character(gl(n=2, k=n, length=N[j]*n, labels=c(0,1))))
     dat0 <- data.frame(id, treat, t)
     
-    beta0 <- rep(0, N[j]*n) # average y at t0 
-    beta1 <- rep(0, N[j]*n) # average increase for x=0
+    beta0 <- rep.int(0, N[j]*n) # average y at t0 
+    beta1 <- rep.int(0, N[j]*n) # average increase for x=0
     beta2 <- eff.size * sqrt(sigmasq.u1) * rep(true.hyp==1, N[j]*n) # average difference in slopes between conditions
     
     for (i in 1:m) {
