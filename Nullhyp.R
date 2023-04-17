@@ -12,7 +12,7 @@ n <- length(t.points)    # number of measurements per subject
 sigmasq.u0 <- 1   # variance of individual deviation from treatment intercept 
 sigmasq.u1 <- 1   # variance of individual deviation from treatment slope
 sigma.u0.u1 <- 0  # covariance between sigmasq.u0 and sigmasq.u1. If positive, then individuals with higher(lower) initial values tend to have a higher (lower) rate of change over time.
-sigmasq.e <- 4    # error variance
+sigmasq.e <- 1    # error variance
 
 
 ss.seq <- rep(NA, n.steps)
@@ -32,11 +32,11 @@ medbf.12 <- rep(NA, n.steps)
 medbf.21 <- rep(NA, n.steps)
 varbf.12 <- rep(NA, n.steps)
 varbf.21 <- rep(NA, n.steps)
-
+madbf.12 <- rep(NA, n.steps)
+madbf.21 <- rep(NA, n.steps)
 meanpmp1 <- rep(NA, n.steps)
 meanpmp2 <- rep(NA, n.steps)
-
-
+    
 for(j in 1:n.steps){
   
   N <- j+1 #*4+16      # number of subjects
@@ -98,6 +98,8 @@ for(j in 1:n.steps){
   meanpmp2[j] <- mean(pmp2)
   varbf.12[j] <- var(bf.12)
   varbf.21[j] <- var(bf.21)
+  madbf.12[j] <- median(abs(bf.12-medbf.12[j]))
+  madbf.21[j] <- median(abs(bf.21-medbf.21[j]))
   
 }
 
@@ -108,8 +110,8 @@ plot(x=ss.seq, y=medbf.12[1:length(ss.seq)], type="l", xlab="N", ylab="median BF
 plot(x=ss.seq, y=medbf.21[1:length(ss.seq)], type="l", xlab="N", ylab="median BF01")
 plot(x=ss.seq, y=meanpmp1[1:length(ss.seq)], type="l", xlab="N", ylab="mean PMP1")
 plot(x=ss.seq, y=meanpmp2[1:length(ss.seq)], type="l", xlab="N", ylab="mean PMP2")    
-plot(x=ss.seq, y=varbf.12[1:length(ss.seq)], type="l", xlab="N", ylab="variance of BF12")    
-plot(x=ss.seq, y=varbf.21[1:length(ss.seq)], type="l", xlab="N", ylab="variance of BF21")    
+plot(x=ss.seq, y=madbf.12[1:length(ss.seq)], type="l", xlab="N", ylab="variance of BF12")    
+plot(x=ss.seq, y=madbf.21[1:length(ss.seq)], type="l", xlab="N", ylab="variance of BF21")    
 
 #dev.off()
 

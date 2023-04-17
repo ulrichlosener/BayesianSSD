@@ -26,14 +26,14 @@ library(MASS)        # multinorm - already included in lme4?
 
 ```{r Data Generation}
 
-bayesian.SSD <- function(n.steps = 20, m = 1000, eff.size = .8, BFthresh = 3, t.points = c(0,1,2,3,4)) {
+bayesian.SSD <- function(m = 1000, eff.size = .8, BF.thresh = 3, t.points = c(0,1,2,3,4)) {
   
   start <- Sys.time()
 
   n.steps <- 20  # number of different sample sizes to evaluate
-  m <- 1000      # number of datasets
+  m <- 100      # number of datasets
   eff.size <- .8 # effect size (Cohen's d): .2 (small), .5 (medium), .8 (large)
-  BFthresh <- 3  # desired Bayes Factor
+  BF.thresh <- 3  # desired Bayes Factor
 
   t.points <- c(0,1,2,3,4) # time of measurements
   n <- length(t.points)    # number of measurements per subject
@@ -152,8 +152,8 @@ bayesian.SSD <- function(n.steps = 20, m = 1000, eff.size = .8, BFthresh = 3, t.
     }
     
     medbf10.H0[j] <- median(bf10.H0, na.rm=T)
-    prop.bf10.H0[j] <- length(bf10.H0[bf10.H0>BFthresh])/m
-    prop.bf01.H0[j] <- length(bf01.H0[bf01.H0>BFthresh])/m
+    prop.bf10.H0[j] <- length(bf10.H0[bf10.H0>BF.thresh])/m
+    prop.bf01.H0[j] <- length(bf01.H0[bf01.H0>BF.thresh])/m
     medbf01.H0[j] <- median(bf01.H0, na.rm=T)
     medbf.1u.H0[j] <- median(bf.1u.H0, na.rm=T)
     medbf.1c.H0[j] <- median(bf.1c.H0, na.rm=T)
@@ -162,8 +162,8 @@ bayesian.SSD <- function(n.steps = 20, m = 1000, eff.size = .8, BFthresh = 3, t.
     medpmp.c1.H0[j] <- median(pmp.c1.H0, na.rm=T)
     
     medbf10.H1[j] <- median(bf10.H1, na.rm=T)
-    prop.bf10.H1[j] <- length(bf10.H1[bf10.H1>BFthresh])/m
-    prop.bf01.H1[j] <- length(bf01.H1[bf01.H1>BFthresh])/m
+    prop.bf10.H1[j] <- length(bf10.H1[bf10.H1>BF.thresh])/m
+    prop.bf01.H1[j] <- length(bf01.H1[bf01.H1>BF.thresh])/m
     medbf01.H1[j] <- median(bf01.H1, na.rm=T)
     medbf.1u.H1[j] <- median(bf.1u.H1, na.rm=T)
     medbf.1c.H1[j] <- median(bf.1c.H1, na.rm=T)
@@ -177,7 +177,7 @@ bayesian.SSD <- function(n.steps = 20, m = 1000, eff.size = .8, BFthresh = 3, t.
   print(Sys.time() - start) 
   print(N)
   
-  par(mfrow=c(4,4))
+  par(mfrow=c(2,4))
   plot(x=ss.seq, y=medbf10.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median BF10 under H0")
   plot(x=ss.seq, y=medbf01.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median BF01 under H0")
   plot(x=ss.seq, y=medbf.1u.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median BF unconstr. under H0")
@@ -188,7 +188,8 @@ bayesian.SSD <- function(n.steps = 20, m = 1000, eff.size = .8, BFthresh = 3, t.
   plot(x=ss.seq, y=medpmp.c1.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPc under H0")
   plot(x=ss.seq, y=prop.bf01.H0[1:length(ss.seq)], type="l", xlab="N", ylab="proportion of BFs larger 3 under H0")
   abline(h=.8, col="red")
-
+  
+  par(mfrow=c(2,4))
   plot(x=ss.seq, y=medbf10.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF10 under H1")
   plot(x=ss.seq, y=medbf01.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF01 under H1")
   plot(x=ss.seq, y=medbf.1u.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF unconstr. under H1")
@@ -254,7 +255,7 @@ plot(x=ss.seq, y=mpmp.a[1:length(ss.seq)], type="l", xlab="N", ylab="mean PMPa")
 plot(x=ss.seq, y=mpmp.b[1:length(ss.seq)], type="l", xlab="N", ylab="mean PMPb")
 plot(x=ss.seq, y=mpmp.c[1:length(ss.seq)], type="l", xlab="N", ylab="mean PMPc")
 plot(x=ss.seq, y=prop.bf10[1:length(ss.seq)], type="l", xlab="N", ylab="proportion of BFs larger 3")
-abline(h=BFthresh, col="red")
+abline(h=BF.thresh, col="red")
 
 ```
 

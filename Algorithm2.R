@@ -10,13 +10,14 @@ library(mgcv)        # extracting vcov matrices
 library(bain)        # Bayesian estimation
 library(MASS)        # multinorm - already included in lme4?
 
-bayesian.SSD2 <- function(n.steps = 20, m = 1000, eff.size = .8, t.points = c(0,1,2,3,4)) {
+bayesian.SSD2 <- function(n.steps = 20, m = 1000, eff.size = .8, t.points = c(0,1,2,3,4), BF.thresh=.8) {
   
   start <- Sys.time()
 
   n.steps <- 20  # number of different sample sizes to evaluate
   m <- 100       # number of datasets
   eff.size <- .8  # effect size (Cohen's d): .2 (small), .5 (medium), .8 (large)
+  BF.thresh=.8
   
   t.points <- c(0,1,2,3,4) # time of measurements
   n <- length(t.points)    # number of measurements per subject
