@@ -26,15 +26,16 @@ library(MASS)        # multinorm - already included in lme4?
 
 ```{r Data Generation}
 
-bayesian.SSD <- function(m = 1000, eff.size = .8, BF.thresh = 3, t.points = c(0,1,2,3,4)) {
+#bayesian.SSD <- function(m = 1000, eff.size = .8, BF.thresh = 3, t.points = c(0,1,2,3,4), eta=.8) {
   
   start <- Sys.time()
 
-  n.steps <- 20  # number of different sample sizes to evaluate
-  m <- 100      # number of datasets
+  n.steps <- 50  # number of different sample sizes to evaluate
+  m <- 1000      # number of datasets
   eff.size <- .8 # effect size (Cohen's d): .2 (small), .5 (medium), .8 (large)
   BF.thresh <- 3  # desired Bayes Factor
-
+  eta <- .8      # probabilitiy with which a BF of at least BF.tresh is to be achieved
+  
   t.points <- c(0,1,2,3,4) # time of measurements
   n <- length(t.points)    # number of measurements per subject
   
@@ -66,10 +67,10 @@ bayesian.SSD <- function(m = 1000, eff.size = .8, BF.thresh = 3, t.points = c(0,
   set.seed(1234)      # for reproducibility
   #seeds <- vector("list", n.steps) 
   
-  sigmasq.u0 <- 1   # variance of individual deviation from treatment intercept 
-  sigmasq.u1 <- 1   # variance of individual deviation from treatment slope
+  sigmasq.u0 <- .1   # variance of individual deviation from treatment intercept 
+  sigmasq.u1 <- .01   # variance of individual deviation from treatment slope
   sigma.u0.u1 <- 0  # covariance between sigmasq.u0 and sigmasq.u1. If positive, then individuals with higher(lower) initial values tend to have a higher (lower) rate of change over time.
-  sigmasq.e <- .02    # error variance
+  sigmasq.e <- .36    # error variance
   
   bf10.H0 <- rep(NA,m) # storage for BFs
   bf01.H0 <- rep(NA,m) # storage for BFs
@@ -171,7 +172,7 @@ bayesian.SSD <- function(m = 1000, eff.size = .8, BF.thresh = 3, t.points = c(0,
     medpmp.b1.H1[j] <- median(pmp.b1.H1, na.rm=T)
     medpmp.c1.H1[j] <- median(pmp.c1.H1, na.rm=T)
     
-    if (max(prop.bf01.H0)>eff.size & max(prop.bf10.H1)>eff.size) {break}
+    if (max(prop.bf01.H0)>eta & max(prop.bf10.H1)>eta) {break}
   }
   
   print(Sys.time() - start) 
@@ -200,7 +201,7 @@ bayesian.SSD <- function(m = 1000, eff.size = .8, BF.thresh = 3, t.points = c(0,
   plot(x=ss.seq, y=medpmp.c1.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPc under H1")
   plot(x=ss.seq, y=prop.bf10.H1[1:length(ss.seq)], type="l", xlab="N", ylab="proportion of BFs larger 3 under H1")
   abline(h=eff.size, col="red")
-}
+#}
 
 
 ```
@@ -208,32 +209,35 @@ bayesian.SSD <- function(m = 1000, eff.size = .8, BF.thresh = 3, t.points = c(0,
 ```{r}
 ### SINGULARITY DIAGNOSTICS
 
-# marker <- rep(NA, m)
-# for(i in 1:m){
-#   marker[i] <- ifelse(isSingular(models[[1]][[i]]), 1, 0)
-# }
-# 
-# badmodels <- models[[1]][marker==1]
-# goodmodels <- models[[1]][marker==0]
-# 
-# badest <- rep(NA, length(badmodels))
-# badstderr <- rep(NA, length(badmodels))
-# for(i in 1:length(badmodels)){
-# badest[i] <- badmodels[[i]]@beta[3]
-# badstderr[i] <- diag(vcov(badmodels[[i]]))[3]
-# }
-# 
-# goodest <- rep(NA, length(goodmodels))
-# goodstderr <- rep(NA, length(goodmodels))
-# for(i in 1:length(goodmodels)){
-# goodest[i] <- goodmodels[[i]]@beta[3]
-# goodstderr[i] <- diag(vcov(goodmodels[[i]]))[3]
-# }
-# 
-# summary(goodest)
-# summary(badest)
-# summary(goodstderr)
-# summary(badstderr)
+marker <- rep(NA, m)
+for(i in 1:m){
+  marker[i] <- ifelse(isSingular(modelsH0[[1]][[i]]), 1, 0)
+}
+
+badmodels <- modelsH0[[1]][marker==1]
+goodmodels <- modelsH0[[1]][marker==0]
+
+badest <- rep(NA, length(badmodels))
+badstderr <- rep(NA, length(badmodels))
+for(i in 1:length(badmodels)){
+badest[i] <- badmodels[[i]]@beta[3]
+badstderr[i] <- diag(vcov(badmodels[[i]]))[3]
+}
+
+goodest <- rep(NA, length(goodmodels))
+goodstderr <- rep(NA, length(goodmodels))
+for(i in 1:length(goodmodels)){
+goodest[i] <- goodmodels[[i]]@beta[3]
+goodstderr[i] <- diag(vcov(goodmodels[[i]]))[3]
+}
+
+length(goodmodels)
+length(badmodels)
+
+summary(goodest)
+summary(badest)
+summary(goodstderr)
+summary(badstderr)
 ```
 
 
