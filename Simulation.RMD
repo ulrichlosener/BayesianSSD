@@ -21,22 +21,24 @@ library(lme4)        # fit multilevel model
 library(mgcv)        # extracting vcov matrices
 library(bain)        # Bayesian estimation
 library(MASS)        # multinorm - already included in lme4?
+library(latex2exp)   # latex notation in plots
 ```
 
-
+  
 ```{r Data Generation}
 
 #bayesian.SSD <- function(m = 1000, eff.size = .8, BF.thresh = 3, t.points = c(0,1,2,3,4), eta=.8) {
   
   start <- Sys.time()
 
-  n.steps <- 50  # number of different sample sizes to evaluate
-  m <- 1000      # number of datasets
+#for(u in 3:10){
+  n.steps <- 200  # number of different sample sizes to evaluate
+  m <- 500      # number of datasets
   eff.size <- .8 # effect size (Cohen's d): .2 (small), .5 (medium), .8 (large)
   BF.thresh <- 3  # desired Bayes Factor
-  eta <- .8      # probabilitiy with which a BF of at least BF.tresh is to be achieved
+  eta <- .8      # probability with which a BF of at least BF.tresh is to be achieved, equivalent to power
   
-  t.points <- c(0,1,2,3,4) # time of measurements
+  t.points <- c(1:5) # time of measurements
   n <- length(t.points)    # number of measurements per subject
   
   prop.bf10.H0 <- numeric(n.steps) # storage for proportions of BFs exceeding a certain threshold
@@ -118,22 +120,12 @@ library(MASS)        # multinorm - already included in lme4?
       datH0 <- data.frame(dat0, yH0)
       datH1 <- data.frame(dat0, yH1)
 
-      #inter <- lme(y ~ t + t:treat, random =~ t | id, data = dat, control = lmeControl(opt="optim"))
+      # if (max(prop.bf01.H0)<eta) {
       modelsH0[[j]][[i]] <- lmer(yH0 ~ t + t:treat + (t | id), data = datH0, control = lmerControl(calc.derivs = F))
-      modelsH1[[j]][[i]] <- lmer(yH1 ~ t + t:treat + (t | id), data = datH1, control = lmerControl(calc.derivs = F))
-
-      #if (isSingular(models[[j]][[i]])) {next} # uncomment if singular models are not to be included
-      
       estH0 <- modelsH0[[j]][[i]]@beta[3]
-      estH1 <- modelsH1[[j]][[i]]@beta[3]
       names(estH0) <- c("t:treat")
-      names(estH1) <- c("t:treat")
-
       sigH0 <- list(as.matrix(vcov(modelsH0[[j]][[i]])[3,3]))
-      sigH1 <- list(as.matrix(vcov(modelsH1[[j]][[i]])[3,3]))
-
-      resultH0 <- bain(estH0, hypotheses <- "t:treat>0;t:treat=0", n = N, Sigma = sigH0, group_parameters = 1, joint_parameters = 0) 
-      resultH1 <- bain(estH1, hypotheses <- "t:treat>0;t:treat=0", n = N, Sigma = sigH1, group_parameters = 1, joint_parameters = 0) 
+      resultH0 <- bain(estH0, hypotheses <- "t:treat>0;t:treat=0", n = N*n, Sigma = sigH0, group_parameters = 1, joint_parameters = 0)
 
       bf10.H0[i] <- resultH0$BFmatrix[1,2]
       bf01.H0[i] <- resultH0$BFmatrix[2,1]
@@ -142,6 +134,16 @@ library(MASS)        # multinorm - already included in lme4?
       pmp.a1.H0[i] <- resultH0$fit$PMPa[1]
       pmp.b1.H0[i] <- resultH0$fit$PMPb[1]
       pmp.c1.H0[i] <- resultH0$fit$PMPc[1]
+      #}
+
+      modelsH1[[j]][[i]] <- lmer(yH1 ~ t + t:treat + (t | id), data = datH1, control = lmerControl(calc.derivs = F))
+
+      #if (isSingular(models[[j]][[i]])) {next} # uncomment if singular models are not to be included
+
+      estH1 <- modelsH1[[j]][[i]]@beta[3]
+      names(estH1) <- c("t:treat")
+      sigH1 <- list(as.matrix(vcov(modelsH1[[j]][[i]])[3,3]))
+      resultH1 <- bain(estH1, hypotheses <- "t:treat>0;t:treat=0", n = N*n, Sigma = sigH1, group_parameters = 1, joint_parameters = 0) 
       
       bf10.H1[i] <- resultH1$BFmatrix[1,2]
       bf01.H1[i] <- resultH1$BFmatrix[2,1]
@@ -173,6 +175,10 @@ library(MASS)        # multinorm - already included in lme4?
     medpmp.c1.H1[j] <- median(pmp.c1.H1, na.rm=T)
     
     if (max(prop.bf01.H0)>eta & max(prop.bf10.H1)>eta) {break}
+    #if (max(prop.bf01.H0)>eta) {break}
+    #if (max(prop.bf10.H1)>eta) {break}
+
+    print(prop.bf10.H1)
   }
   
   print(Sys.time() - start) 
@@ -188,7 +194,7 @@ library(MASS)        # multinorm - already included in lme4?
   plot(x=ss.seq, y=medpmp.b1.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPb under H0")
   plot(x=ss.seq, y=medpmp.c1.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPc under H0")
   plot(x=ss.seq, y=prop.bf01.H0[1:length(ss.seq)], type="l", xlab="N", ylab="proportion of BFs larger 3 under H0")
-  abline(h=.8, col="red")
+  abline(h=eta, col="red")
   
   par(mfrow=c(2,4))
   plot(x=ss.seq, y=medbf10.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF10 under H1")
@@ -200,11 +206,102 @@ library(MASS)        # multinorm - already included in lme4?
   plot(x=ss.seq, y=medpmp.b1.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPb under H1")
   plot(x=ss.seq, y=medpmp.c1.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPc under H1")
   plot(x=ss.seq, y=prop.bf10.H1[1:length(ss.seq)], type="l", xlab="N", ylab="proportion of BFs larger 3 under H1")
-  abline(h=eff.size, col="red")
+  abline(h=eta, col="red")
 #}
+  
+
+  
+  
+# pdf(file = paste("c://", u, ".pdf", sep=""), width = 6, height = 6)
+#   
+#   par(mfrow=c(2,4))
+#   plot(x=ss.seq, y=medbf10.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF10 under H1")
+#   plot(x=ss.seq, y=medbf01.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF01 under H1")
+#   plot(x=ss.seq, y=medbf.1u.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF unconstr. under H1")
+#   plot(x=ss.seq, y=medbf.1c.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF complement under H1")
+#   
+#   plot(x=ss.seq, y=medpmp.a1.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPa under H1")
+#   plot(x=ss.seq, y=medpmp.b1.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPb under H1")
+#   plot(x=ss.seq, y=medpmp.c1.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPc under H1")
+#   plot(x=ss.seq, y=prop.bf10.H1[1:length(ss.seq)], type="l", xlab="N", ylab="proportion of BFs larger 3 under H1")
+#   abline(h=eff.size, col="red")
+# 
+# dev.off()
+  
+  
+#}
+
+```
+
+
+```{r}
+  df.prop.bf10.H1 <- as.data.frame(cbind(prop.bf10.H1[1:length(na.exclude(ss.seq))], na.exclude(ss.seq)))
+  colnames(df.prop.bf10.H1) <- c("prop.bf", "N")
+  ggplot(data=df.prop.bf10.H1, aes(x=N, y=prop.bf)) + 
+    geom_line() +
+    geom_hline(yintercept=eta, col="red", linetype="dashed")
+  
+  bf10.H1.trim <- bf10.H1[bf10.H1<=quantile(bf10.H1, probs = .85)]
+  
+  plot(density(bf10.H1.trim), xlim=range(0:200))
+  polygon(c(density(bf10.H1.trim)$x[density(bf10.H1.trim)$x >= 3 ], 3),
+        c(density(bf10.H1.trim)$y[density(bf10.H1.trim)$x >= 3 ], 0),
+        col = "slateblue1",
+        border = 1)
+  
+p <- ggplot() + geom_density(aes(x=bf10.H1.trim), size=1) + 
+  xlim(0, 150) + 
+  geom_vline(xintercept=3, linetype=2, color="red") +
+  annotate("text", x=0, y=.02, label="BFthresh=3", angle=90) +
+  labs(title = TeX(r"(Sampling Distribution of $BF_{10}$ under $H_1$ for $N=176$)"), y="density", x=TeX("$BF_{10}$"))
+
+dpb <- ggplot_build(p)
+
+p + geom_area(data=data.frame(x=dpb$data[[1]]$x[dpb$data[[1]]$x>3],
+                       y=dpb$data[[1]]$y[dpb$data[[1]]$x>3]),
+            aes(x=x, y=y), fill="grey")
+
+# H1
+bf01.H0.trim <- bf01.H0 #bf01.H0[bf01.H0<=quantile(bf01.H0, probs = .85)]
+  
+  plot(density(bf01.H0.trim), xlim=range(0:50))
+  polygon(c(density(bf01.H0.trim)$x[density(bf01.H0.trim)$x >= 3 ], 3),
+        c(density(bf01.H0.trim)$y[density(bf01.H0.trim)$x >= 3 ], 0),
+        col = "slateblue1",
+        border = 1)
+
+p0 <- ggplot() + geom_density(aes(x=bf01.H0.trim), size=1) + 
+  xlim(0, 50) + 
+  geom_vline(xintercept=3, linetype=2, color="red") +
+  annotate("text", x=2, y=.02, label="BFthresh=3", angle=90) +
+  labs(title = TeX(r"(Sampling Distribution of $BF_{01}$ under $H_0$ for $N=20$)"), y="density", x=TeX("$BF_{01}$"))
+
+dpb0 <- ggplot_build(p0)
+
+p0 + geom_area(data=data.frame(x=dpb0$data[[1]]$x[dpb0$data[[1]]$x>3],
+                       y=dpb0$data[[1]]$y[dpb0$data[[1]]$x>3]),
+            aes(x=x, y=y), fill="grey")
+
+
+# both
+
+pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/SampDistH1.pdf", width = 6, height = 6)
+
+p + geom_area(data=data.frame(x=dpb$data[[1]]$x[dpb$data[[1]]$x>3],
+                       y=dpb$data[[1]]$y[dpb$data[[1]]$x>3]),
+            aes(x=x, y=y), fill="grey")
+dev.off()
+
+pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/SampDistH0.pdf", width = 6, height = 6)
+p0 + geom_area(data=data.frame(x=dpb0$data[[1]]$x[dpb0$data[[1]]$x>3],
+                       y=dpb0$data[[1]]$y[dpb0$data[[1]]$x>3]),
+            aes(x=x, y=y), fill="grey")
+dev.off()
+
 
 
 ```
+
 
 ```{r}
 ### SINGULARITY DIAGNOSTICS
@@ -241,79 +338,43 @@ summary(badstderr)
 ```
 
 
-```{r}
-# par(mfrow=c(2,2))
-# plot(x=ss.seq, y=mbf10[1:length(ss.seq)], type="l", xlab="N", ylab="mean BF12")
-# plot(x=ss.seq, y=mbf01[1:length(ss.seq)], type="l", xlab="N", ylab="mean BF21")
-# plot(x=ss.seq, y=mbf.u[1:length(ss.seq)], type="l", xlab="N", ylab="mean BF unconstr.")
-# plot(x=ss.seq, y=mbf.c[1:length(ss.seq)], type="l", xlab="N", ylab="mean BF complement")
-
-par(mfrow=c(2,2))
-plot(x=ss.seq, y=medbf10[1:length(ss.seq)], type="l", xlab="N", ylab="median BF10")
-plot(x=ss.seq, y=medbf01[1:length(ss.seq)], type="l", xlab="N", ylab="median BF01")
-plot(x=ss.seq, y=medbf.u[1:length(ss.seq)], type="l", xlab="N", ylab="median BF unconstr.")
-plot(x=ss.seq, y=medbf.c[1:length(ss.seq)], type="l", xlab="N", ylab="median BF complement")
-
-par(mfrow=c(2,2))
-plot(x=ss.seq, y=mpmp.a[1:length(ss.seq)], type="l", xlab="N", ylab="mean PMPa")
-plot(x=ss.seq, y=mpmp.b[1:length(ss.seq)], type="l", xlab="N", ylab="mean PMPb")
-plot(x=ss.seq, y=mpmp.c[1:length(ss.seq)], type="l", xlab="N", ylab="mean PMPc")
-plot(x=ss.seq, y=prop.bf10[1:length(ss.seq)], type="l", xlab="N", ylab="proportion of BFs larger 3")
-abline(h=BF.thresh, col="red")
-
-```
-
-
 
 ```{r PDFs}
-pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/mBF_N_bet=1.pdf",   
+
+pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/BF_PMP_H0.pdf",   
     width = 6, # The width of the plot in inches
     height = 6) # The height of the plot in inches
 
-par(mfrow=c(2,2))
-plot(x=seq(10,100,10), y=mbf12, type="l", xlab="N", ylab="mean BF12")
-plot(x=seq(10,100,10), y=mbf21, type="l", xlab="N", ylab="mean BF21")
-plot(x=seq(10,100,10), y=mbf.u, type="l", xlab="N", ylab="mean BF unconstr.")
-plot(x=seq(10,100,10), y=mbf.c, type="l", xlab="N", ylab="mean BF complement")
+  par(mfrow=c(2,4))
+  plot(x=ss.seq, y=medbf10.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median BF10 under H0")
+  plot(x=ss.seq, y=medbf01.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median BF01 under H0")
+  plot(x=ss.seq, y=medbf.1u.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median BF unconstr. under H0")
+  plot(x=ss.seq, y=medbf.1c.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median BF complement under H0")
+  
+  plot(x=ss.seq, y=medpmp.a1.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPa under H0")
+  plot(x=ss.seq, y=medpmp.b1.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPb under H0")
+  plot(x=ss.seq, y=medpmp.c1.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPc under H0")
+  plot(x=ss.seq, y=prop.bf01.H0[1:length(ss.seq)], type="l", xlab="N", ylab="proportion of BFs larger 3 under H0")
+  abline(h=.8, col="red")
 
 dev.off()
 
 
-pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/medBF_N_larged.pdf",   
+pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/BF_PMP_H1_medium.pdf",   
     width = 6, # The width of the plot in inches
     height = 6) # The height of the plot in inches
 
-par(mfrow=c(2,2))
-plot(x=ss.seq, y=medbf12[1:length(ss.seq)], type="l", xlab="N", ylab="median BF12")
-plot(x=ss.seq, y=medbf21[1:length(ss.seq)], type="l", xlab="N", ylab="median BF21")
-plot(x=ss.seq, y=medbf.u[1:length(ss.seq)], type="l", xlab="N", ylab="median BF unconstr.")
-plot(x=ss.seq, y=medbf.c[1:length(ss.seq)], type="l", xlab="N", ylab="median BF complement")
-mtext("Large effect size (0.2)",side=3,line=-16,outer=TRUE)
-
-dev.off()
-
-
-pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/PMPs_N_larged.pdf",   
-    width = 6, # The width of the plot in inches
-    height = 6) # The height of the plot in inches
-
-par(mfrow=c(2,2))
-plot(x=ss.seq, y=mpmp.a[1:length(ss.seq)], type="l", xlab="N", ylab="mean PMPa")
-plot(x=ss.seq, y=mpmp.b[1:length(ss.seq)], type="l", xlab="N", ylab="mean PMPb")
-plot(x=ss.seq, y=mpmp.c[1:length(ss.seq)], type="l", xlab="N", ylab="mean PMPc")
-plot(x=ss.seq, y=prop.bf12[1:length(ss.seq)], type="l", xlab="N", ylab="Proportion of BFs larger than 3")
-abline(h=.8, col="red")
-mtext("Large effect size (0.2)",side=3,line=-16,outer=TRUE)
-
-dev.off()
-
-
-pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/Prop.BFs3_N_larged.pdf",   
-    width = 6, # The width of the plot in inches
-    height = 6) # The height of the plot in inches
-
-plot(x=ss.seq, y=prop.bf12[1:length(ss.seq)], type="l", xlab="N", ylab="proportion of BFs larger 3", main="Large d (0.8)")
-abline(h=.8, col="red")
+  par(mfrow=c(2,4))
+  plot(x=ss.seq, y=medbf10.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF10 under H1")
+  plot(x=ss.seq, y=medbf01.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF01 under H1")
+  plot(x=ss.seq, y=medbf.1u.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF unconstr. under H1")
+  plot(x=ss.seq, y=medbf.1c.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF complement under H1")
+  
+  plot(x=ss.seq, y=medpmp.a1.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPa under H1")
+  plot(x=ss.seq, y=medpmp.b1.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPb under H1")
+  plot(x=ss.seq, y=medpmp.c1.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPc under H1")
+  plot(x=ss.seq, y=prop.bf10.H1[1:length(ss.seq)], type="l", xlab="N", ylab="proportion of BFs larger 3 under H1")
+  abline(h=eff.size, col="red")
 
 dev.off()
 
