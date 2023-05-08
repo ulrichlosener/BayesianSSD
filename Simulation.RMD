@@ -9,9 +9,6 @@ output:
 
 # Simulation study for the project: Bayesian Sample Size Determination for Multilevel Trials
 
-In this simulation study, I generate multilevel data for N individuals at n timepoints. The within variable is "time" and the between variable "treatment".
-
-First, I call the necessary libraries.
 
 ```{r Packages, message=FALSE}
 library(tidyr)       # pipes
@@ -24,6 +21,63 @@ library(MASS)        # multinorm - already included in lme4?
 library(latex2exp)   # latex notation in plots
 ```
 
+
+```{r Function SSD}
+
+SSD <- function(m=100, t.points=c(1,2,3,4,5), var.u0=.0333, var.u1=.1, var.e=.0262, eff.size=.8, BFthres=3){
+  source("fct_data_generation.R")
+  
+  start <- Sys.time()
+  eta <- .8          # desired power
+  N <- 30            # initial N
+  condition <- FALSE # condition fulfillment indicator
+
+  while (condition==F) {
+    
+    N <- N+2
+    results <- dat.gen(m=m, N=N, t.points=t.points, var.u0=var.u0, var.u1=var.u1, var.e=var.e, eff.size=eff.size, BFthres=BFthres)
+    # condition met?
+    ifelse(results$Prop_BF0>eta & results$Prop_BF1>eta, condition <- TRUE, condition <- FALSE)
+    print(N)
+    
+  }
+  print(Sys.time() - start) 
+
+}
+
+```
+
+
+```{r Function SSD Binary}
+
+SSD.binary <- function(m=100, t.points=c(1,2,3,4,5), var.u0=.0333, var.u1=.1, var.e=.0262, eff.size=.8, BFthres=3){
+  source("fct_data_generation.R")
+  
+  start <- Sys.time()
+  eta <- .8          # desired power
+  N.current <- 30    # initial N
+  N.min <- 20
+  N.max <- 1000
+  condition <- FALSE # condition fulfillment indicator
+
+  while (N.current-N.min>1) {
+    
+    N.current <- round((N.min + N.max)/2, digits = 0)
+
+    results <- dat.gen(m=m, N=N.current, t.points=t.points, var.u0=var.u0, var.u1=var.u1, var.e=var.e, eff.size=eff.size, BFthres=BFthres)
+    # condition met?
+    ifelse(results$Prop_BF0>eta & results$Prop_BF1>eta, condition <- TRUE, condition <- FALSE)
+    ifelse(condition==FALSE, N.min <- N.current, N.max <- N.current)
+    print(N.current)
+    
+  }
+  print(Sys.time() - start) 
+
+}
+
+```
+  
+  
   
 ```{r Data Generation}
 
@@ -33,74 +87,58 @@ library(latex2exp)   # latex notation in plots
 
 #for(u in 3:10){
   n.steps <- 200  # number of different sample sizes to evaluate
-  m <- 500      # number of datasets
+  m <- 100      # number of datasets
   eff.size <- .8 # effect size (Cohen's d): .2 (small), .5 (medium), .8 (large)
   BF.thresh <- 3  # desired Bayes Factor
   eta <- .8      # probability with which a BF of at least BF.tresh is to be achieved, equivalent to power
   
+  N <- 30
+  
   t.points <- c(1:5) # time of measurements
   n <- length(t.points)    # number of measurements per subject
   
-  prop.bf10.H0 <- numeric(n.steps) # storage for proportions of BFs exceeding a certain threshold
+  # Make N as N per group
+  # alternative BF is just inverse , delete PMPs 
+  
+  # prop.bf10.H0 <- numeric(n.steps) # storage for proportions of BFs exceeding a certain threshold
   prop.bf01.H0 <- numeric(n.steps) # storage for proportions of BFs exceeding a certain threshold
-  medbf10.H0 <- numeric(n.steps) # storage for median BFs
+  # medbf10.H0 <- numeric(n.steps) # storage for median BFs
   medbf01.H0 <- numeric(n.steps) # storage for median BFs
   medbf.1u.H0 <- numeric(n.steps) # storage for median BFs
-  medbf.1c.H0 <- numeric(n.steps) # storage for median BFs
-  medpmp.a1.H0 <- numeric(n.steps) # storage for median PMPs
-  medpmp.b1.H0 <- numeric(n.steps) # storage for median PMPs
-  medpmp.c1.H0 <- numeric(n.steps) # storage for median PMPs
+
   
   prop.bf10.H1 <- numeric(n.steps) # storage for proportions of BFs exceeding a certain threshold
-  prop.bf01.H1 <- numeric(n.steps) # storage for proportions of BFs exceeding a certain threshold
+  # prop.bf01.H1 <- numeric(n.steps) # storage for proportions of BFs exceeding a certain threshold
   medbf10.H1 <- numeric(n.steps) # storage for median BFs
-  medbf01.H1 <- numeric(n.steps) # storage for median BFs
+  # medbf01.H1 <- numeric(n.steps) # storage for median BFs
   medbf.1u.H1 <- numeric(n.steps) # storage for median BFs
-  medbf.1c.H1 <- numeric(n.steps) # storage for median BFs
-  medpmp.a1.H1 <- numeric(n.steps) # storage for median PMPs
-  medpmp.b1.H1 <- numeric(n.steps) # storage for median PMPs
-  medpmp.c1.H1 <- numeric(n.steps) # storage for median PMPs
-  
+
   ss.seq <- rep(NA, n.steps)
   
-  modelsH0 <- rep(list(rep(vector("list", m))),n.steps)
-  modelsH1 <- rep(list(rep(vector("list", m))),n.steps)
-
   set.seed(1234)      # for reproducibility
   #seeds <- vector("list", n.steps) 
   
-  sigmasq.u0 <- .1   # variance of individual deviation from treatment intercept 
-  sigmasq.u1 <- .01   # variance of individual deviation from treatment slope
+  sigmasq.u0 <- .0333   # variance of individual deviation from treatment intercept 
+  sigmasq.u1 <- 1   # variance of individual deviation from treatment slope
   sigma.u0.u1 <- 0  # covariance between sigmasq.u0 and sigmasq.u1. If positive, then individuals with higher(lower) initial values tend to have a higher (lower) rate of change over time.
-  sigmasq.e <- .36    # error variance
+  sigmasq.e <- .0262    # error variance
   
-  bf10.H0 <- rep(NA,m) # storage for BFs
+  # bf10.H0 <- rep(NA,m) # storage for BFs
   bf01.H0 <- rep(NA,m) # storage for BFs
   bf.1u.H0 <- rep(NA,m) # storage for BFs
-  bf.1c.H0 <- rep(NA,m) # storage for BFs
-  pmp.a1.H0 <- rep(NA,m) # storage for PMPs
-  pmp.b1.H0 <- rep(NA,m) # storage for PMPs
-  pmp.c1.H0 <- rep(NA,m) # storage for PMPs
+
   
   bf10.H1 <- rep(NA,m) # storage for BFs
-  bf01.H1 <- rep(NA,m) # storage for BFs
+  # bf01.H1 <- rep(NA,m) # storage for BFs
   bf.1u.H1 <- rep(NA,m) # storage for BFs
-  bf.1c.H1 <- rep(NA,m) # storage for BFs
-  pmp.a1.H1 <- rep(NA,m) # storage for PMPs
-  pmp.b1.H1 <- rep(NA,m) # storage for PMPs
-  pmp.c1.H1 <- rep(NA,m) # storage for PMPs
+
   
-  for(j in 1:n.steps){
-    
-    N <- j*4+16      # number of subjects
+ for(j in 1:n.steps){
+
+  
+    N <- j+29     # number of subjects
     ss.seq[j] <- N
-    
-    # create data vectors
-    y <- rep(NA, N)    # data storage
-    t <- rep(t.points, N)
-    id <- rep(seq_len(N), each=n)
-    treat <- as.numeric(as.character(gl(n=2, k=n, length=N*n, labels=c(0,1))))
-    dat0 <- data.frame(id, treat, t)
+
     
     # create population parameters for data generation
     beta0 <- 0 # average y at t0 
@@ -117,23 +155,19 @@ library(latex2exp)   # latex notation in plots
       
       yH0 <- beta0 + u0 + beta1*t + beta2H0*treat*t + u1*t + e # data-generating mechanism under H0
       yH1 <- beta0 + u0 + beta1*t + beta2H1*treat*t + u1*t + e # data-generating mechanism under H1
-      datH0 <- data.frame(dat0, yH0)
+      # datH0 <- data.frame(dat0, yH0)
       datH1 <- data.frame(dat0, yH1)
 
       # if (max(prop.bf01.H0)<eta) {
-      modelsH0[[j]][[i]] <- lmer(yH0 ~ t + t:treat + (t | id), data = datH0, control = lmerControl(calc.derivs = F))
-      estH0 <- modelsH0[[j]][[i]]@beta[3]
-      names(estH0) <- c("t:treat")
-      sigH0 <- list(as.matrix(vcov(modelsH0[[j]][[i]])[3,3]))
-      resultH0 <- bain(estH0, hypotheses <- "t:treat>0;t:treat=0", n = N*n, Sigma = sigH0, group_parameters = 1, joint_parameters = 0)
+       modelsH0[[j]][[i]] <- lmer(yH0 ~ t + t:treat + (t | id), data = datH0, control = lmerControl(calc.derivs = F))
+       estH0 <- modelsH0[[j]][[i]]@beta[3]
+       names(estH0) <- c("t:treat")
+       sigH0 <- list(as.matrix(vcov(modelsH0[[j]][[i]])[3,3]))
+       resultH0 <- bain(estH0, hypotheses <- "t:treat>0;t:treat=0", n = N*n, Sigma = sigH0, group_parameters = 1, joint_parameters = 0)
 
-      bf10.H0[i] <- resultH0$BFmatrix[1,2]
-      bf01.H0[i] <- resultH0$BFmatrix[2,1]
-      bf.1u.H0[i] <- resultH0$fit$BF.u[1]
-      bf.1c.H0[i] <- resultH0$fit$BF.c[1]
-      pmp.a1.H0[i] <- resultH0$fit$PMPa[1]
-      pmp.b1.H0[i] <- resultH0$fit$PMPb[1]
-      pmp.c1.H0[i] <- resultH0$fit$PMPc[1]
+      # bf10.H0[i] <- resultH0$BFmatrix[1,2]
+       bf01.H0[i] <- resultH0$BFmatrix[2,1] #
+       bf.1u.H0[i] <- resultH0$fit$BF.u[1] #
       #}
 
       modelsH1[[j]][[i]] <- lmer(yH1 ~ t + t:treat + (t | id), data = datH1, control = lmerControl(calc.derivs = F))
@@ -146,37 +180,28 @@ library(latex2exp)   # latex notation in plots
       resultH1 <- bain(estH1, hypotheses <- "t:treat>0;t:treat=0", n = N*n, Sigma = sigH1, group_parameters = 1, joint_parameters = 0) 
       
       bf10.H1[i] <- resultH1$BFmatrix[1,2]
-      bf01.H1[i] <- resultH1$BFmatrix[2,1]
+      # bf01.H1[i] <- resultH1$BFmatrix[2,1]
       bf.1u.H1[i] <- resultH1$fit$BF.u[1]
-      bf.1c.H1[i] <- resultH1$fit$BF.c[1]
-      pmp.a1.H1[i] <- resultH1$fit$PMPa[1]
-      pmp.b1.H1[i] <- resultH1$fit$PMPb[1]
-      pmp.c1.H1[i] <- resultH1$fit$PMPc[1]
+
     }
     
-    medbf10.H0[j] <- median(bf10.H0, na.rm=T)
-    prop.bf10.H0[j] <- length(bf10.H0[bf10.H0>BF.thresh])/m
-    prop.bf01.H0[j] <- length(bf01.H0[bf01.H0>BF.thresh])/m
-    medbf01.H0[j] <- median(bf01.H0, na.rm=T)
-    medbf.1u.H0[j] <- median(bf.1u.H0, na.rm=T)
-    medbf.1c.H0[j] <- median(bf.1c.H0, na.rm=T)
-    medpmp.a1.H0[j] <- median(pmp.a1.H0, na.rm=T)
-    medpmp.b1.H0[j] <- median(pmp.b1.H0, na.rm=T)
-    medpmp.c1.H0[j] <- median(pmp.c1.H0, na.rm=T)
+    # medbf10.H0[j] <- median(bf10.H0, na.rm=T)
+    # prop.bf10.H0[j] <- length(bf10.H0[bf10.H0>BF.thresh])/m
+    # prop.bf01.H0[j] <- length(bf01.H0[bf01.H0>BF.thresh])/m #
+    # medbf01.H0[j] <- median(bf01.H0, na.rm=T) # 
+    # medbf.1u.H0[j] <- median(bf.1u.H0, na.rm=T) #
+
     
     medbf10.H1[j] <- median(bf10.H1, na.rm=T)
     prop.bf10.H1[j] <- length(bf10.H1[bf10.H1>BF.thresh])/m
-    prop.bf01.H1[j] <- length(bf01.H1[bf01.H1>BF.thresh])/m
-    medbf01.H1[j] <- median(bf01.H1, na.rm=T)
+    # prop.bf01.H1[j] <- length(bf01.H1[bf01.H1>BF.thresh])/m
+    # medbf01.H1[j] <- median(bf01.H1, na.rm=T)
     medbf.1u.H1[j] <- median(bf.1u.H1, na.rm=T)
-    medbf.1c.H1[j] <- median(bf.1c.H1, na.rm=T)
-    medpmp.a1.H1[j] <- median(pmp.a1.H1, na.rm=T)
-    medpmp.b1.H1[j] <- median(pmp.b1.H1, na.rm=T)
-    medpmp.c1.H1[j] <- median(pmp.c1.H1, na.rm=T)
+
     
-    if (max(prop.bf01.H0)>eta & max(prop.bf10.H1)>eta) {break}
+    # if (max(prop.bf01.H0)>eta & max(prop.bf10.H1)>eta) {break}
     #if (max(prop.bf01.H0)>eta) {break}
-    #if (max(prop.bf10.H1)>eta) {break}
+    if (max(prop.bf10.H1)>eta) {break}
 
     print(prop.bf10.H1)
   }
@@ -184,27 +209,14 @@ library(latex2exp)   # latex notation in plots
   print(Sys.time() - start) 
   print(N)
   
-  par(mfrow=c(2,4))
+  par(mfrow=c(2,3))
   plot(x=ss.seq, y=medbf10.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median BF10 under H0")
-  plot(x=ss.seq, y=medbf01.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median BF01 under H0")
   plot(x=ss.seq, y=medbf.1u.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median BF unconstr. under H0")
-  plot(x=ss.seq, y=medbf.1c.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median BF complement under H0")
-  
-  plot(x=ss.seq, y=medpmp.a1.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPa under H0")
-  plot(x=ss.seq, y=medpmp.b1.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPb under H0")
-  plot(x=ss.seq, y=medpmp.c1.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPc under H0")
   plot(x=ss.seq, y=prop.bf01.H0[1:length(ss.seq)], type="l", xlab="N", ylab="proportion of BFs larger 3 under H0")
   abline(h=eta, col="red")
   
-  par(mfrow=c(2,4))
   plot(x=ss.seq, y=medbf10.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF10 under H1")
-  plot(x=ss.seq, y=medbf01.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF01 under H1")
   plot(x=ss.seq, y=medbf.1u.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF unconstr. under H1")
-  plot(x=ss.seq, y=medbf.1c.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF complement under H1")
-  
-  plot(x=ss.seq, y=medpmp.a1.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPa under H1")
-  plot(x=ss.seq, y=medpmp.b1.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPb under H1")
-  plot(x=ss.seq, y=medpmp.c1.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPc under H1")
   plot(x=ss.seq, y=prop.bf10.H1[1:length(ss.seq)], type="l", xlab="N", ylab="proportion of BFs larger 3 under H1")
   abline(h=eta, col="red")
 #}
@@ -235,33 +247,51 @@ library(latex2exp)   # latex notation in plots
 
 
 ```{r}
-  df.prop.bf10.H1 <- as.data.frame(cbind(prop.bf10.H1[1:length(na.exclude(ss.seq))], na.exclude(ss.seq)))
-  colnames(df.prop.bf10.H1) <- c("prop.bf", "N")
-  ggplot(data=df.prop.bf10.H1, aes(x=N, y=prop.bf)) + 
-    geom_line() +
-    geom_hline(yintercept=eta, col="red", linetype="dashed")
-  
-  bf10.H1.trim <- bf10.H1[bf10.H1<=quantile(bf10.H1, probs = .85)]
-  
-  plot(density(bf10.H1.trim), xlim=range(0:200))
-  polygon(c(density(bf10.H1.trim)$x[density(bf10.H1.trim)$x >= 3 ], 3),
-        c(density(bf10.H1.trim)$y[density(bf10.H1.trim)$x >= 3 ], 0),
-        col = "slateblue1",
-        border = 1)
-  
-p <- ggplot() + geom_density(aes(x=bf10.H1.trim), size=1) + 
-  xlim(0, 150) + 
-  geom_vline(xintercept=3, linetype=2, color="red") +
-  annotate("text", x=0, y=.02, label="BFthresh=3", angle=90) +
-  labs(title = TeX(r"(Sampling Distribution of $BF_{10}$ under $H_1$ for $N=176$)"), y="density", x=TeX("$BF_{10}$"))
+df.prop.bf10.H1 <- as.data.frame(cbind(prop.bf10.H1[1:length(na.exclude(ss.seq))], na.exclude(ss.seq)))
+colnames(df.prop.bf10.H1) <- c("prop.bf", "N")
 
-dpb <- ggplot_build(p)
+# increase in proportion of BFs larger than BFthres
+pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/Prop.BF.medium.pdf", width = 6, height = 6)
+ggplot(data=df.prop.bf10.H1, aes(x=N, y=prop.bf), linewidth=1.5) + 
+  geom_line() +
+  geom_hline(yintercept=eta, col="red", linetype="dashed") +
+  labs(x="Proportion of BF01 larger than 3") 
+dev.off()
 
-p + geom_area(data=data.frame(x=dpb$data[[1]]$x[dpb$data[[1]]$x>3],
-                       y=dpb$data[[1]]$y[dpb$data[[1]]$x>3]),
-            aes(x=x, y=y), fill="grey")
+# Sampling distribution of BFs for N
+  
+#bf10.H1.trim <- bf10.H1 #[bf10.H1<=quantile(bf10.H1, probs = .99)]
+df.prop.bfs <- data.frame(c(bf10.H1, bf01.H0), rep(c("1","0"), each=m))
+colnames(df.prop.bfs) <- c("BF", "hyp")
+```
+
+```{r}
+# H0
+p0 <- ggplot() + geom_density(aes(x=bf01.H0), linewidth=1) + 
+  xlim(-3, 220) + 
+  labs(title = "Sampling Distribution of BF01 under H0 with N = 20", y="density", x="BF01") 
+
+dpb0 <- ggplot_build(p0)
+
+p0 + geom_area(data=data.frame(x=dpb0$data[[1]]$x[dpb0$data[[1]]$x>3], y=dpb0$data[[1]]$y[dpb0$data[[1]]$x>3]), aes(x=x, y=y), fill="grey") +
+    annotate("text", x=c(-3,25), y=c(.015,0.005), label=c(TeX("$BF_{thresh} = 3$"), TeX("$\\eta = .80$")), angle=c(90,0)) +
+    geom_vline(xintercept=3, linetype=2, color="red", linewidth=1)
 
 # H1
+p1 <- ggplot() + geom_density(aes(x=bf10.H1), linewidth=1) + 
+  xlim(-3, 220) + 
+  labs(title = "Sampling Distribution of BF10 under H1 with N = 116", y="density", x="BF10") 
+
+dpb1 <- ggplot_build(p1)
+
+p1 + geom_area(data=data.frame(x=dpb1$data[[1]]$x[dpb1$data[[1]]$x>3], y=dpb1$data[[1]]$y[dpb1$data[[1]]$x>3]), aes(x=x, y=y), fill="grey") +
+    annotate("text", x=c(-3,25), y=c(.01,0.0025), label=c(TeX("$BF_{thresh} = 3$"), TeX("$\\eta = .80$")), angle=c(90,0)) +
+    geom_vline(xintercept=3, linetype=2, color="red", linewidth=1) 
+```
+
+
+
+# H0
 bf01.H0.trim <- bf01.H0 #bf01.H0[bf01.H0<=quantile(bf01.H0, probs = .85)]
   
   plot(density(bf01.H0.trim), xlim=range(0:50))
@@ -282,6 +312,7 @@ p0 + geom_area(data=data.frame(x=dpb0$data[[1]]$x[dpb0$data[[1]]$x>3],
                        y=dpb0$data[[1]]$y[dpb0$data[[1]]$x>3]),
             aes(x=x, y=y), fill="grey")
 
+```{r}
 
 # both
 
@@ -298,7 +329,24 @@ p0 + geom_area(data=data.frame(x=dpb0$data[[1]]$x[dpb0$data[[1]]$x>3],
             aes(x=x, y=y), fill="grey")
 dev.off()
 
-
+# StatAreaUnderDensity <- ggproto(
+#   "StatAreaUnderDensity", Stat,
+#   required_aes = "x",
+#   compute_group = function(data, scales, xlim = NULL, n = 50) {
+#     fun <- approxfun(density(data$x))
+#     StatFunction$compute_group(data, scales, fun = fun, xlim = xlim, n = n)
+#   }
+# )
+# 
+# stat_aud <- function(mapping = NULL, data = NULL, geom = "area",
+#                     position = "identity", na.rm = FALSE, show.legend = NA, 
+#                     inherit.aes = TRUE, n = 50, xlim=NULL,  
+#                     ...) {
+#   layer(
+#     stat = StatAreaUnderDensity, data = data, mapping = mapping, geom = geom, 
+#     position = position, show.legend = show.legend, inherit.aes = inherit.aes,
+#     params = list(xlim = xlim, n = n, ...))
+# }
 
 ```
 
