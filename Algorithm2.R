@@ -17,7 +17,7 @@ bayesian.SSD2 <- function(n.steps = 20, m = 1000, eff.size = .8, t.points = c(0,
   n.steps <- 20  # number of different sample sizes to evaluate
   m <- 100       # number of datasets
   eff.size <- .8  # effect size (Cohen's d): .2 (small), .5 (medium), .8 (large)
-  BF.thresh=.8
+  BF.thresh <- .8
   
   t.points <- c(0,1,2,3,4) # time of measurements
   n <- length(t.points)    # number of measurements per subject
@@ -76,6 +76,7 @@ bayesian.SSD2 <- function(n.steps = 20, m = 1000, eff.size = .8, t.points = c(0,
   
   N <- numeric(n.steps)
   
+  #rather use while loop, no nsteps
   for(j in 1:n.steps){
     
     N[j] <- round((Nmin + Nmax)/2, digits = 0)
@@ -158,7 +159,7 @@ bayesian.SSD2 <- function(n.steps = 20, m = 1000, eff.size = .8, t.points = c(0,
     medpmp.b1.H1[j] <- median(pmp.b1.H1, na.rm=T)
     medpmp.c1.H1[j] <- median(pmp.c1.H1, na.rm=T)
     
-    print(N[j])
+    print(N[j]) # also print exoplained text 
     
     if(N[j]==Nmin+1) {break}
     
