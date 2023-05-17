@@ -22,32 +22,83 @@ library(latex2exp)   # latex notation in plots
 ```
 
 
+SSD Function
 ```{r Function SSD}
 
-SSD <- function(m=100, t.points=c(1,2,3,4,5), var.u0=.0333, var.u1=.1, var.e=.0262, eff.size=.8, BFthres=3){
-  source("fct_data_generation.R")
+SSD <- function(m=100, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.0262, eff.size=.8, BFthres=3, eta=.8){
   
+  source("fct_data_generation.R")
   start <- Sys.time()
-  eta <- .8          # desired power
+  
   N <- 30            # initial N
-  condition <- FALSE # condition fulfillment indicator
-
+  condition <- FALSE # condition initially false
+  i <- 1             # iteration number
+  
+  medBF10.H1 <- list()
+  medBF1c.H1 <- list()
+  medBF01.H0 <- list()
+  medBF0c.H0 <- list()
+  prop.BF01.H0 <- list()
+  prop.BF10.H1 <- list()
+  
+    
   while (condition==F) {
     
     N <- N+2
     results <- dat.gen(m=m, N=N, t.points=t.points, var.u0=var.u0, var.u1=var.u1, var.e=var.e, eff.size=eff.size, BFthres=BFthres)
-    # condition met?
-    ifelse(results$Prop_BF0>eta & results$Prop_BF1>eta, condition <- TRUE, condition <- FALSE)
-    print(N)
     
+    medBF01.H0[[i]] <- results$Median_BF0
+    medBF10.H1[[i]] <- results$Median_BF1
+    prop.BF01.H0[[i]] <- results$Prop_BF0
+    prop.BF10.H1[[i]] <- results$Prop_BF1
+    
+    # condition met?
+    ifelse(prop.BF01.H0[[i]]>eta & prop.BF10.H1[[i]]>eta, condition <- TRUE, condition <- FALSE)
+    print(list(N, prop.BF10.H1[[i]]))
+    i <- i+1
   }
-  print(Sys.time() - start) 
 
+  measures <- cbind(medBF01.H0,medBF10.H1, prop.BF01.H0, prop.BF10.H1)
+  print(Sys.time() - start)
+  return(measures)
 }
+a <- SSD(m=1000)
+```
+
+```{r}
+library(Rcpp)
+cppFunction("NumericVector SSDc(int m, NumericVector tpoints, double var.u1, double var.e, double eff.size, double BFthres, double eta){
+  int N = 30;
+  
+  while()
+}")
+```
+
+
+
+```{r Plots}
+# increase in Prop BF larger 3
+
+b <- data.frame(a)
+
+b$N <- as.numeric(b$N)
+b$prop.BF10.H1 <- as.numeric(b$prop.BF10.H1)
+
+
+
+ggplot(data=b, aes(x=N, y=prop.BF10.H1), linewidth=1.5) + 
+  geom_line() +
+  geom_hline(yintercept=.8, col="red", linetype="dashed") +
+  labs(x="Proportion of BF01 larger than 3") 
+
+
 
 ```
 
 
+
+
+Binary Algorithm
 ```{r Function SSD Binary}
 
 SSD.binary <- function(m=100, t.points=c(1,2,3,4,5), var.u0=.0333, var.u1=.1, var.e=.0262, eff.size=.8, BFthres=3){
@@ -58,9 +109,8 @@ SSD.binary <- function(m=100, t.points=c(1,2,3,4,5), var.u0=.0333, var.u1=.1, va
   N.current <- 30    # initial N
   N.min <- 20
   N.max <- 1000
-  condition <- FALSE # condition fulfillment indicator
 
-  while (N.current-N.min>1) {
+  while (N.current!=N.min+1) {
     
     N.current <- round((N.min + N.max)/2, digits = 0)
 
@@ -77,8 +127,7 @@ SSD.binary <- function(m=100, t.points=c(1,2,3,4,5), var.u0=.0333, var.u1=.1, va
 
 ```
   
-  
-  
+Old code:
 ```{r Data Generation}
 
 #bayesian.SSD <- function(m = 1000, eff.size = .8, BF.thresh = 3, t.points = c(0,1,2,3,4), eta=.8) {
