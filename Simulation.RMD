@@ -7,8 +7,6 @@ output:
   pdf_document: default
 ---
 
-# Simulation study for the project: Bayesian Sample Size Determination for Multilevel Trials
-
 
 ```{r Packages, message=FALSE}
 library(tidyr)       # pipes
@@ -24,8 +22,7 @@ library(latex2exp)   # latex notation in plots
 
 SSD Function
 ```{r Function SSD}
-
-SSD <- function(m=100, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.0262, eff.size=.8, BFthres=3, eta=.8){
+SSD <- function(m=10000, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, eta=.8){
   
   source("fct_data_generation.R")
   start <- Sys.time()
@@ -34,14 +31,15 @@ SSD <- function(m=100, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.0262, 
   condition <- FALSE # condition initially false
   i <- 1             # iteration number
   
-  medBF10.H1 <- list()
-  medBF1c.H1 <- list()
-  medBF01.H0 <- list()
-  medBF0c.H0 <- list()
-  prop.BF01.H0 <- list()
-  prop.BF10.H1 <- list()
+  medBF10.H1 <- vector("list", 100)
+  medBF1c.H1 <- vector("list", 100)
+  medBF01.H0 <- vector("list", 100)
+  medBF0c.H0 <- vector("list", 100)
+  prop.BF01.H0 <- vector("list", 100)
+  prop.BF10.H1 <- vector("list", 100)
+  mean.log.BF01.H0 <- vector("list", 100)
+  mean.log.BF10.H1 <- vector("list", 100)
   
-    
   while (condition==F) {
     
     N <- N+2
@@ -51,27 +49,81 @@ SSD <- function(m=100, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.0262, 
     medBF10.H1[[i]] <- results$Median_BF1
     prop.BF01.H0[[i]] <- results$Prop_BF0
     prop.BF10.H1[[i]] <- results$Prop_BF1
-    
+    mean.log.BF01.H0[[i]] <- results$Meanlog_BF0
+    mean.log.BF10.H1[[i]] <- results$Meanlog_BF1
+
     # condition met?
     ifelse(prop.BF01.H0[[i]]>eta & prop.BF10.H1[[i]]>eta, condition <- TRUE, condition <- FALSE)
     print(list(N, prop.BF10.H1[[i]]))
     i <- i+1
   }
 
-  measures <- cbind(medBF01.H0,medBF10.H1, prop.BF01.H0, prop.BF10.H1)
+  measures <- cbind(medBF01.H0,medBF10.H1, prop.BF01.H0, prop.BF10.H1, mean.log.BF01.H0, mean.log.BF10.H1, N)
   print(Sys.time() - start)
-  return(measures)
+  return(measures[i-1,])
+
 }
-a <- SSD(m=1000)
 ```
+
+
+```{r Function SSD}
+
+
+
+
+
+rat <- rep(list(vector("list", 5)), 9)
+
+for(i in 1:9){
+  rat[i][[1]] <- SSD(var.u1 = i/10, var.e = 1 - i/10)
+}
+
+rats
+
+rat.medBF01.H0 <- rep(NA, 9)
+rat.medBF10.H1 <- rep(NA, 9)
+rat.N <- rep(NA, 9)
+  
+  
+for(i in 1:9){
+rat.medBF01.H0[i] <- rat[[i]][1]
+rat.medBF10.H1[i] <- rat[[i]][2]
+rat.N[i] <- rat[[i]][5]
+}
+
+d <- as.data.frame(cbind(as.numeric(rat.medBF01.H0), as.numeric(rat.medBF10.H1), as.numeric(rat.N), rats))
+colnames(d) <- c("medBF01.H0", "medBF10.H1", "N", "ratio")
+
+x <- seq(32, 74, by=2)
+
+pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/medBF10.H1.pdf", width = 6, height = 6)
+ggplot() + geom_line(aes(y=unlist(medBF10.H1), x=x), linewidth=1) + xlab("N") + ylab("Median BF10 under H1") 
+# + geom_hline(yintercept=.8, col="red", linetype="dashed") 
+
+
+dev.off()
+
+```
+
 
 ```{r}
 library(Rcpp)
-cppFunction("NumericVector SSDc(int m, NumericVector tpoints, double var.u1, double var.e, double eff.size, double BFthres, double eta){
+cppFunction('NumericVector SSDc(int m, NumericVector tpoints, double var.u1, double var.e, double eff.size, double BFthres, double eta){
   int N = 30;
+  double power = 0;
+  Function dat.gen.cpp("dat.gen");
   
-  while()
-}")
+  while(power<.80){
+    N = N+2;
+    NumericVector results = dat.gen.cpp(m=m, N=N, t.points=t.points, ar.u0=var.u0, var.u1=var.u1, var.e=var.e, eff.size=eff.size, BFthres=BFthres);
+    
+    
+  }
+}')
+
+
+
+
 ```
 
 
@@ -79,7 +131,6 @@ cppFunction("NumericVector SSDc(int m, NumericVector tpoints, double var.u1, dou
 ```{r Plots}
 # increase in Prop BF larger 3
 
-b <- data.frame(a)
 
 b$N <- as.numeric(b$N)
 b$prop.BF10.H1 <- as.numeric(b$prop.BF10.H1)
@@ -127,172 +178,6 @@ SSD.binary <- function(m=100, t.points=c(1,2,3,4,5), var.u0=.0333, var.u1=.1, va
 
 ```
   
-Old code:
-```{r Data Generation}
-
-#bayesian.SSD <- function(m = 1000, eff.size = .8, BF.thresh = 3, t.points = c(0,1,2,3,4), eta=.8) {
-  
-  start <- Sys.time()
-
-#for(u in 3:10){
-  n.steps <- 200  # number of different sample sizes to evaluate
-  m <- 100      # number of datasets
-  eff.size <- .8 # effect size (Cohen's d): .2 (small), .5 (medium), .8 (large)
-  BF.thresh <- 3  # desired Bayes Factor
-  eta <- .8      # probability with which a BF of at least BF.tresh is to be achieved, equivalent to power
-  
-  N <- 30
-  
-  t.points <- c(1:5) # time of measurements
-  n <- length(t.points)    # number of measurements per subject
-  
-  # Make N as N per group
-  # alternative BF is just inverse , delete PMPs 
-  
-  # prop.bf10.H0 <- numeric(n.steps) # storage for proportions of BFs exceeding a certain threshold
-  prop.bf01.H0 <- numeric(n.steps) # storage for proportions of BFs exceeding a certain threshold
-  # medbf10.H0 <- numeric(n.steps) # storage for median BFs
-  medbf01.H0 <- numeric(n.steps) # storage for median BFs
-  medbf.1u.H0 <- numeric(n.steps) # storage for median BFs
-
-  
-  prop.bf10.H1 <- numeric(n.steps) # storage for proportions of BFs exceeding a certain threshold
-  # prop.bf01.H1 <- numeric(n.steps) # storage for proportions of BFs exceeding a certain threshold
-  medbf10.H1 <- numeric(n.steps) # storage for median BFs
-  # medbf01.H1 <- numeric(n.steps) # storage for median BFs
-  medbf.1u.H1 <- numeric(n.steps) # storage for median BFs
-
-  ss.seq <- rep(NA, n.steps)
-  
-  set.seed(1234)      # for reproducibility
-  #seeds <- vector("list", n.steps) 
-  
-  sigmasq.u0 <- .0333   # variance of individual deviation from treatment intercept 
-  sigmasq.u1 <- 1   # variance of individual deviation from treatment slope
-  sigma.u0.u1 <- 0  # covariance between sigmasq.u0 and sigmasq.u1. If positive, then individuals with higher(lower) initial values tend to have a higher (lower) rate of change over time.
-  sigmasq.e <- .0262    # error variance
-  
-  # bf10.H0 <- rep(NA,m) # storage for BFs
-  bf01.H0 <- rep(NA,m) # storage for BFs
-  bf.1u.H0 <- rep(NA,m) # storage for BFs
-
-  
-  bf10.H1 <- rep(NA,m) # storage for BFs
-  # bf01.H1 <- rep(NA,m) # storage for BFs
-  bf.1u.H1 <- rep(NA,m) # storage for BFs
-
-  
- for(j in 1:n.steps){
-
-  
-    N <- j+29     # number of subjects
-    ss.seq[j] <- N
-
-    
-    # create population parameters for data generation
-    beta0 <- 0 # average y at t0 
-    beta1 <- 0 # average increase for x=0
-    beta2H0 <- 0 # average difference in slopes between conditions under H0
-    beta2H1 <- eff.size * sqrt(sigmasq.u1) # average difference in slopes between conditions under H1
-    
-      for (i in 1:m) {
-      #seeds[[i]] <- .Random.seed
-      multinorm <- mvrnorm(n=N, mu=c(0,0), matrix(c(sigmasq.u0, sigma.u0.u1, sigma.u0.u1, sigmasq.u1), nrow=2, ncol=2)) # draw individual deviation from treatment intercept and slope from a multivariate normal distribution with mean 0.
-      u0 <- rep(multinorm[,1], each=n)
-      u1 <- rep(multinorm[,2], each=n)
-      e <- rnorm(N*n, 0, sqrt(sigmasq.e))
-      
-      yH0 <- beta0 + u0 + beta1*t + beta2H0*treat*t + u1*t + e # data-generating mechanism under H0
-      yH1 <- beta0 + u0 + beta1*t + beta2H1*treat*t + u1*t + e # data-generating mechanism under H1
-      # datH0 <- data.frame(dat0, yH0)
-      datH1 <- data.frame(dat0, yH1)
-
-      # if (max(prop.bf01.H0)<eta) {
-       modelsH0[[j]][[i]] <- lmer(yH0 ~ t + t:treat + (t | id), data = datH0, control = lmerControl(calc.derivs = F))
-       estH0 <- modelsH0[[j]][[i]]@beta[3]
-       names(estH0) <- c("t:treat")
-       sigH0 <- list(as.matrix(vcov(modelsH0[[j]][[i]])[3,3]))
-       resultH0 <- bain(estH0, hypotheses <- "t:treat>0;t:treat=0", n = N*n, Sigma = sigH0, group_parameters = 1, joint_parameters = 0)
-
-      # bf10.H0[i] <- resultH0$BFmatrix[1,2]
-       bf01.H0[i] <- resultH0$BFmatrix[2,1] #
-       bf.1u.H0[i] <- resultH0$fit$BF.u[1] #
-      #}
-
-      modelsH1[[j]][[i]] <- lmer(yH1 ~ t + t:treat + (t | id), data = datH1, control = lmerControl(calc.derivs = F))
-
-      #if (isSingular(models[[j]][[i]])) {next} # uncomment if singular models are not to be included
-
-      estH1 <- modelsH1[[j]][[i]]@beta[3]
-      names(estH1) <- c("t:treat")
-      sigH1 <- list(as.matrix(vcov(modelsH1[[j]][[i]])[3,3]))
-      resultH1 <- bain(estH1, hypotheses <- "t:treat>0;t:treat=0", n = N*n, Sigma = sigH1, group_parameters = 1, joint_parameters = 0) 
-      
-      bf10.H1[i] <- resultH1$BFmatrix[1,2]
-      # bf01.H1[i] <- resultH1$BFmatrix[2,1]
-      bf.1u.H1[i] <- resultH1$fit$BF.u[1]
-
-    }
-    
-    # medbf10.H0[j] <- median(bf10.H0, na.rm=T)
-    # prop.bf10.H0[j] <- length(bf10.H0[bf10.H0>BF.thresh])/m
-    # prop.bf01.H0[j] <- length(bf01.H0[bf01.H0>BF.thresh])/m #
-    # medbf01.H0[j] <- median(bf01.H0, na.rm=T) # 
-    # medbf.1u.H0[j] <- median(bf.1u.H0, na.rm=T) #
-
-    
-    medbf10.H1[j] <- median(bf10.H1, na.rm=T)
-    prop.bf10.H1[j] <- length(bf10.H1[bf10.H1>BF.thresh])/m
-    # prop.bf01.H1[j] <- length(bf01.H1[bf01.H1>BF.thresh])/m
-    # medbf01.H1[j] <- median(bf01.H1, na.rm=T)
-    medbf.1u.H1[j] <- median(bf.1u.H1, na.rm=T)
-
-    
-    # if (max(prop.bf01.H0)>eta & max(prop.bf10.H1)>eta) {break}
-    #if (max(prop.bf01.H0)>eta) {break}
-    if (max(prop.bf10.H1)>eta) {break}
-
-    print(prop.bf10.H1)
-  }
-  
-  print(Sys.time() - start) 
-  print(N)
-  
-  par(mfrow=c(2,3))
-  plot(x=ss.seq, y=medbf10.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median BF10 under H0")
-  plot(x=ss.seq, y=medbf.1u.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median BF unconstr. under H0")
-  plot(x=ss.seq, y=prop.bf01.H0[1:length(ss.seq)], type="l", xlab="N", ylab="proportion of BFs larger 3 under H0")
-  abline(h=eta, col="red")
-  
-  plot(x=ss.seq, y=medbf10.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF10 under H1")
-  plot(x=ss.seq, y=medbf.1u.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF unconstr. under H1")
-  plot(x=ss.seq, y=prop.bf10.H1[1:length(ss.seq)], type="l", xlab="N", ylab="proportion of BFs larger 3 under H1")
-  abline(h=eta, col="red")
-#}
-  
-
-  
-  
-# pdf(file = paste("c://", u, ".pdf", sep=""), width = 6, height = 6)
-#   
-#   par(mfrow=c(2,4))
-#   plot(x=ss.seq, y=medbf10.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF10 under H1")
-#   plot(x=ss.seq, y=medbf01.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF01 under H1")
-#   plot(x=ss.seq, y=medbf.1u.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF unconstr. under H1")
-#   plot(x=ss.seq, y=medbf.1c.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF complement under H1")
-#   
-#   plot(x=ss.seq, y=medpmp.a1.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPa under H1")
-#   plot(x=ss.seq, y=medpmp.b1.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPb under H1")
-#   plot(x=ss.seq, y=medpmp.c1.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPc under H1")
-#   plot(x=ss.seq, y=prop.bf10.H1[1:length(ss.seq)], type="l", xlab="N", ylab="proportion of BFs larger 3 under H1")
-#   abline(h=eff.size, col="red")
-# 
-# dev.off()
-  
-  
-#}
-
-```
 
 
 ```{r}
