@@ -159,7 +159,7 @@ bayesian.SSD2 <- function(n.steps = 20, m = 1000, eff.size = .8, t.points = c(0,
     medpmp.b1.H1[j] <- median(pmp.b1.H1, na.rm=T)
     medpmp.c1.H1[j] <- median(pmp.c1.H1, na.rm=T)
     
-    print(N[j]) # also print exoplained text 
+    print(N[j]) # also print explaining text 
     
     if(N[j]==Nmin+1) {break}
     

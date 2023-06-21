@@ -22,7 +22,7 @@ library(latex2exp)   # latex notation in plots
 
 SSD Function
 ```{r Function SSD}
-SSD <- function(m=10000, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, eta=.8){
+SSD <- function(m=100, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, eta=.8){
   
   source("fct_data_generation.R")
   start <- Sys.time()
@@ -31,74 +31,204 @@ SSD <- function(m=10000, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.02, 
   condition <- FALSE # condition initially false
   i <- 1             # iteration number
   
-  medBF10.H1 <- vector("list", 100)
-  medBF1c.H1 <- vector("list", 100)
-  medBF01.H0 <- vector("list", 100)
-  medBF0c.H0 <- vector("list", 100)
-  prop.BF01.H0 <- vector("list", 100)
-  prop.BF10.H1 <- vector("list", 100)
-  mean.log.BF01.H0 <- vector("list", 100)
-  mean.log.BF10.H1 <- vector("list", 100)
+  medBF.H0 <- vector("list", 100)
+  medBF.H1 <- vector("list", 100)
+  medBFc.H0 <- vector("list", 100)
+  medBFc.H1 <- vector("list", 100)
+  medBFu.H0 <- vector("list", 100)
+  medBFu.H1 <- vector("list", 100)
+  prop.BF.H0 <- vector("list", 100)
+  prop.BF.H1 <- vector("list", 100)
+
   
   while (condition==F) {
     
     N <- N+2
-    results <- dat.gen(m=m, N=N, t.points=t.points, var.u0=var.u0, var.u1=var.u1, var.e=var.e, eff.size=eff.size, BFthres=BFthres)
+    results <- dat.gen.vec(m=m, N=N, t.points=t.points, var.u0=var.u0, var.u1=var.u1, var.e=var.e, eff.size=eff.size, BFthres=BFthres)
     
-    medBF01.H0[[i]] <- results$Median_BF0
-    medBF10.H1[[i]] <- results$Median_BF1
-    prop.BF01.H0[[i]] <- results$Prop_BF0
-    prop.BF10.H1[[i]] <- results$Prop_BF1
-    mean.log.BF01.H0[[i]] <- results$Meanlog_BF0
-    mean.log.BF10.H1[[i]] <- results$Meanlog_BF1
-
+    medBF.H0[[i]] <- results$Median_BF0
+    medBF.H1[[i]] <- results$Median_BF1
+    prop.BF.H0[[i]] <- results$Prop_BF0
+    prop.BF.H1[[i]] <- results$Prop_BF1
+    medBFc.H0[[i]] <- results$Median_BF_c0
+    medBFc.H1[[i]] <- results$Median_BF_c1
+    medBFu.H0[[i]] <- results$Median_BF_u0
+    medBFu.H1[[i]] <- results$Median_BF_u1
+  
     # condition met?
-    ifelse(prop.BF01.H0[[i]]>eta & prop.BF10.H1[[i]]>eta, condition <- TRUE, condition <- FALSE)
-    print(list(N, prop.BF10.H1[[i]]))
+    ifelse(prop.BF.H0[[i]]>eta & prop.BF.H1[[i]]>eta, condition <- TRUE, condition <- FALSE)
+    print(list(N, prop.BF.H1[[i]]))
     i <- i+1
   }
 
-  measures <- cbind(medBF01.H0,medBF10.H1, prop.BF01.H0, prop.BF10.H1, mean.log.BF01.H0, mean.log.BF10.H1, N)
+  measures <- cbind(medBF.H0,medBF.H1, prop.BF.H0, prop.BF.H1, medBFc.H0, medBFc.H1, medBFu.H0, medBFu.H1)
+  
   print(Sys.time() - start)
+  
   return(measures[i-1,])
 
 }
 ```
 
+```{r eff size}
 
-```{r Function SSD}
+effsize <- rep(list(vector("list", 6)), 24)
+eff <- rep(NA, 24)
 
-
-
-
-
-rat <- rep(list(vector("list", 5)), 9)
-
-for(i in 1:9){
-  rat[i][[1]] <- SSD(var.u1 = i/10, var.e = 1 - i/10)
+for (i in 1:24) {
+  effsize[i][[1]] <- dat.gen(N=100, eff.size = .2+(i/40))
+  eff[i] <- .2+(i/40)
 }
 
-rats
+eff.medBF01.H0 <- rep(NA, 24)
+eff.medBF10.H1 <- rep(NA, 24)
+eff.propBF01.H0 <- rep(NA, 24)
+eff.propBF10.H1 <- rep(NA, 24)
+eff.meanBF01.H0 <- rep(NA, 24)
+eff.meanBF10.H1 <- rep(NA, 24)
 
-rat.medBF01.H0 <- rep(NA, 9)
-rat.medBF10.H1 <- rep(NA, 9)
-rat.N <- rep(NA, 9)
-  
-  
-for(i in 1:9){
-rat.medBF01.H0[i] <- rat[[i]][1]
-rat.medBF10.H1[i] <- rat[[i]][2]
-rat.N[i] <- rat[[i]][5]
+for(i in 1:24){
+eff.medBF01.H0[i] <- effsize[[i]][1]
+eff.medBF10.H1[i] <- effsize[[i]][2]
+eff.propBF01.H0[i] <- effsize[[i]][3]
+eff.propBF10.H1[i] <- effsize[[i]][4]
+eff.meanBF01.H0[i] <- effsize[[i]][5]
+eff.meanBF10.H1[i] <- effsize[[i]][6]
 }
 
-d <- as.data.frame(cbind(as.numeric(rat.medBF01.H0), as.numeric(rat.medBF10.H1), as.numeric(rat.N), rats))
-colnames(d) <- c("medBF01.H0", "medBF10.H1", "N", "ratio")
 
-x <- seq(32, 74, by=2)
+df.eff <- as.data.frame(cbind(as.numeric(eff.medBF10.H1), as.numeric(eff.propBF10.H1), as.numeric(eff.meanBF10.H1), eff))
+colnames(df.eff) <- c("medBF10.H1", "propBF10.H1", "meanBF10.H1","eff.size")
+
+mean_prop <- c(as.numeric(eff.meanBF10.H1), as.numeric(eff.propBF10.H1))
+df.eff.long <- as.data.frame(cbind(mean_prop, rep(c(0,1), each=24), eff))
+colnames(df.eff.long) <- c("mean_prop", "ind", "eff")
+
+
+pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/effsize.pdf", width = 6, height = 6)
+
+ggplot(data=df.eff.long, aes(x=eff, y=mean_prop, group=factor(ind), color=factor(ind))) + geom_line(linewidth=1) +
+scale_color_discrete(name="", labels=c("Mean log(BF)", "Power")) +
+geom_hline(yintercept = 1, linetype="dashed") +
+geom_hline(yintercept = 0, linetype="dashed") +
+xlab("Effect Size") + ylab("") + 
+theme_grey(base_size = 22) +
+theme(legend.position = c(.2, .90))
+
+dev.off()
+
+```
+
+
+```{r plots results}
+b <- as.data.frame(measures2)
+
+b$medBF01.H0 <- as.numeric(unlist(b$medBF01.H0))
+b$medBF10.H1 <- as.numeric(unlist(b$medBF10.H1))
+b$meanBF01.H0 <- as.numeric(unlist(b$mean.log.BF01.H0))
+b$meanBF10.H1 <- as.numeric(unlist(b$mean.log.BF10.H1))
+b$propBF01.H0 <- as.numeric(unlist(b$prop.BF01.H0))
+b$propBF10.H1 <- as.numeric(unlist(b$prop.BF10.H1))
+
+b$N <- seq(32, 74, 2)
+
+# Plot Proportions of BF>3
+pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/prop.BF10.H1.pdf", width = 6, height = 6)
+ggplot(data=b, aes(x=N, y=propBF10.H1)) + 
+  geom_line(linewidth=1) +
+  geom_hline(yintercept=.8, col="red", linetype="dashed") +
+  labs(y="Proportion of BF01 larger than 3", x="N") + theme_grey(base_size = 22)
+dev.off()
+
+# Plot Median BF
+pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/meanBFs.pdf", width = 6, height = 6)
+ggplot(data=b) + 
+  geom_line(aes(x=N, y=meanBF01.H0, color="H0"), linewidth=1) +
+  geom_line(aes(x=N, y=meanBF10.H1, color="H1"), linewidth=1) +
+  labs(y="Mean log(BF)", x="N", color="Correct Hypothesis") + 
+  theme_grey(base_size = 22) +
+  theme(legend.position = c(.3, .90))
+dev.off()
+
+
+```
+
+
+```{r measurement occasions}
+meas.occ <- rep(list(vector("list", 6)), 8)
+occ <- rep(NA, 8)
+
+for(i in 1:8){
+  meas.occ[i][[1]] <- dat.gen(m=10000, t.points = c(1:(i+2)))
+  occ[i] <- (i+2)
+}
+
+occ.medBF01.H0 <- rep(NA, 8)
+occ.medBF10.H1 <- rep(NA, 8)
+occ.propBF01.H0 <- rep(NA, 8)
+occ.propBF10.H1 <- rep(NA, 8)
+occ.meanBF01.H0 <- rep(NA, 8)
+occ.meanBF10.H1 <- rep(NA, 8)
+
+for(i in 1:8){
+occ.medBF01.H0[i] <- meas.occ[[i]][1]
+occ.medBF10.H1[i] <- meas.occ[[i]][2]
+occ.propBF01.H0[i] <- meas.occ[[i]][3]
+occ.propBF10.H1[i] <- meas.occ[[i]][4]
+occ.meanBF01.H0[i] <- meas.occ[[i]][5]
+occ.meanBF10.H1[i] <- meas.occ[[i]][6]
+}
+
+d2 <- as.data.frame(cbind(as.numeric(occ.medBF01.H0), as.numeric(occ.medBF10.H1), as.numeric(occ.propBF01.H0), as.numeric(occ.propBF10.H1),as.numeric(occ.meanBF01.H0), as.numeric(occ.meanBF10.H1), occ))
+colnames(d2) <- c("medBF01.H0", "medBF10.H1", "propBF01.H0","propBF10.H1","meanBF01.H0", "meanBF10.H1","occ")
 
 pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/medBF10.H1.pdf", width = 6, height = 6)
-ggplot() + geom_line(aes(y=unlist(medBF10.H1), x=x), linewidth=1) + xlab("N") + ylab("Median BF10 under H1") 
-# + geom_hline(yintercept=.8, col="red", linetype="dashed") 
+
+ggplot(data=d2) + geom_line(aes(y=unlist(propBF01.H0), x=occ), linewidth=1, color="red") +  geom_line(aes(y=unlist(propBF10.H1), x=occ), color="blue", linewidth=1) + xlab("occ") + ylab("") 
+
+ggplot(data=d2) + geom_line(aes(y=unlist(medBF01.H0), x=occ), linewidth=1, color="red") +  geom_line(aes(y=unlist(medBF10.H1), x=occ), color="blue", linewidth=1) + xlab("occ") + ylab("") 
+
+
+dev.off()
+
+```
+
+
+```{r Function ratios}
+
+rat <- rep(list(vector("list", 5)), 11)
+slop.var <- rep(NA, 11)
+
+for(i in 1:11){
+  rat[i][[1]] <- dat.gen(var.u1 = i/10, var.e = .1, m=10000)
+  slop.var[i] <- i/10
+}
+
+rats <- slop.var/.1
+
+rat.medBF01.H0 <- rep(NA, 11)
+rat.medBF10.H1 <- rep(NA, 11)
+rat.propBF01.H0 <- rep(NA, 11)
+rat.propBF10.H1 <- rep(NA, 11)
+rat.meanBF01.H0 <- rep(NA, 11)
+rat.meanBF10.H1 <- rep(NA, 11)
+  
+  
+for(i in 1:11){
+rat.medBF01.H0[i] <- rat[[i]][1]
+rat.medBF10.H1[i] <- rat[[i]][2]
+rat.propBF01.H0[i] <- rat[[i]][3]
+rat.propBF10.H1[i] <- rat[[i]][4]
+rat.meanBF01.H0[i] <- rat[[i]][5]
+rat.meanBF10.H1[i] <- rat[[i]][6]
+}
+
+d <- as.data.frame(cbind(as.numeric(rat.medBF01.H0), as.numeric(rat.medBF10.H1), as.numeric(rat.propBF01.H0), as.numeric(rat.propBF10.H1),as.numeric(rat.meanBF01.H0), as.numeric(rat.meanBF10.H1), rats))
+colnames(d) <- c("medBF01.H0", "medBF10.H1", "propBF01.H0","propBF10.H1","meanBF01.H0", "meanBF10.H1","ratio")
+
+pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/medBF10.H1.pdf", width = 6, height = 6)
+
+ggplot(data=d) + geom_line(aes(y=unlist(meanBF01.H0), x=ratio), linewidth=1) +  geom_line(aes(y=unlist(meanBF10.H1), x=ratio), linewidth=1) + xlab("ratio") + ylab("") 
 
 
 dev.off()
@@ -121,26 +251,6 @@ cppFunction('NumericVector SSDc(int m, NumericVector tpoints, double var.u1, dou
   }
 }')
 
-
-
-
-```
-
-
-
-```{r Plots}
-# increase in Prop BF larger 3
-
-
-b$N <- as.numeric(b$N)
-b$prop.BF10.H1 <- as.numeric(b$prop.BF10.H1)
-
-
-
-ggplot(data=b, aes(x=N, y=prop.BF10.H1), linewidth=1.5) + 
-  geom_line() +
-  geom_hline(yintercept=.8, col="red", linetype="dashed") +
-  labs(x="Proportion of BF01 larger than 3") 
 
 
 
@@ -201,26 +311,34 @@ colnames(df.prop.bfs) <- c("BF", "hyp")
 
 ```{r}
 # H0
-p0 <- ggplot() + geom_density(aes(x=bf01.H0), linewidth=1) + 
-  xlim(-3, 220) + 
-  labs(title = "Sampling Distribution of BF01 under H0 with N = 20", y="density", x="BF01") 
+pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/Samp.dist.H0.pdf", width = 6, height = 6)
+
+p0 <- ggplot() + geom_density(aes(x=unlist(BFs.H0)), linewidth=1) + 
+  xlim(0, 50) + 
+  labs(y="density", x="BF01") 
 
 dpb0 <- ggplot_build(p0)
 
 p0 + geom_area(data=data.frame(x=dpb0$data[[1]]$x[dpb0$data[[1]]$x>3], y=dpb0$data[[1]]$y[dpb0$data[[1]]$x>3]), aes(x=x, y=y), fill="grey") +
-    annotate("text", x=c(-3,25), y=c(.015,0.005), label=c(TeX("$BF_{thresh} = 3$"), TeX("$\\eta = .80$")), angle=c(90,0)) +
+    annotate("text", x=c(2,10), y=c(.01,0.005), label=c(TeX("$BF_{thresh} = 3$"), TeX("$\\eta = .80$")), angle=c(90,0)) +
     geom_vline(xintercept=3, linetype=2, color="red", linewidth=1)
 
+dev.off()
+
 # H1
-p1 <- ggplot() + geom_density(aes(x=bf10.H1), linewidth=1) + 
-  xlim(-3, 220) + 
-  labs(title = "Sampling Distribution of BF10 under H1 with N = 116", y="density", x="BF10") 
+pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/Samp.dist.H1.pdf", width = 6, height = 6)
+
+p1 <- ggplot() + geom_density(aes(x=unlist(BFs.H1)), linewidth=1) + 
+  xlim(0, 100) + 
+  labs(y="density", x="BF10") 
 
 dpb1 <- ggplot_build(p1)
 
 p1 + geom_area(data=data.frame(x=dpb1$data[[1]]$x[dpb1$data[[1]]$x>3], y=dpb1$data[[1]]$y[dpb1$data[[1]]$x>3]), aes(x=x, y=y), fill="grey") +
-    annotate("text", x=c(-3,25), y=c(.01,0.0025), label=c(TeX("$BF_{thresh} = 3$"), TeX("$\\eta = .80$")), angle=c(90,0)) +
+    annotate("text", x=c(0,25), y=c(.01,0.0025), label=c(TeX("$BF_{thresh} = 3$"), TeX("$\\eta = .80$")), angle=c(90,0)) +
     geom_vline(xintercept=3, linetype=2, color="red", linewidth=1) 
+
+dev.off()
 ```
 
 
