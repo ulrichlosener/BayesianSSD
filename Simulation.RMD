@@ -22,46 +22,59 @@ library(latex2exp)   # latex notation in plots
 
 SSD Function
 ```{r Function SSD}
-SSD <- function(m=100, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, eta=.8){
+SSD <- function(m=1000, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, eta=.8){
   
   source("fct_data_generation.R")
   start <- Sys.time()
   
+  gen.H0 <- FALSE
   N <- 30            # initial N
-  condition <- FALSE # condition initially false
+  condition <- FALSE # condition initially false  
   i <- 1             # iteration number
   
-  medBF.H0 <- vector("list", 100)
-  medBF.H1 <- vector("list", 100)
-  medBFc.H0 <- vector("list", 100)
-  medBFc.H1 <- vector("list", 100)
-  medBFu.H0 <- vector("list", 100)
-  medBFu.H1 <- vector("list", 100)
-  prop.BF.H0 <- vector("list", 100)
-  prop.BF.H1 <- vector("list", 100)
+  medBF.H0 <- vector("list", 300)
+  medBF.H1 <- vector("list", 300)
+  medBFc.H0 <- vector("list", 300)
+  medBFc.H1 <- vector("list", 300)
+  medBFu.H0 <- vector("list", 300)
+  medBFu.H1 <- vector("list", 300)
+  prop.BF.H0 <- vector("list", 300)
+  prop.BF.H1 <- vector("list", 300)
+  PMP.c0 <- vector("list", 300)
+  PMP.c1 <- vector("list", 300)
 
   
-  while (condition==F) {
+  while (N!=544) {
     
     N <- N+2
-    results <- dat.gen.vec(m=m, N=N, t.points=t.points, var.u0=var.u0, var.u1=var.u1, var.e=var.e, eff.size=eff.size, BFthres=BFthres)
+    results <- dat.gen.vec(gen.H0=gen.H0, m=m, N=N, t.points=t.points, var.u0=var.u0, var.u1=var.u1, var.e=var.e, eff.size=eff.size, BFthres=BFthres)
     
+    if(gen.H0==TRUE){
     medBF.H0[[i]] <- results$Median_BF0
-    medBF.H1[[i]] <- results$Median_BF1
     prop.BF.H0[[i]] <- results$Prop_BF0
-    prop.BF.H1[[i]] <- results$Prop_BF1
     medBFc.H0[[i]] <- results$Median_BF_c0
-    medBFc.H1[[i]] <- results$Median_BF_c1
     medBFu.H0[[i]] <- results$Median_BF_u0
+    PMP.c0[[i]] <- results$MeanPMP_c0
+    }
+    
+    medBF.H1[[i]] <- results$Median_BF1
+    prop.BF.H1[[i]] <- results$Prop_BF1
+    medBFc.H1[[i]] <- results$Median_BF_c1
     medBFu.H1[[i]] <- results$Median_BF_u1
-  
+    PMP.c1[[i]] <- results$MeanPMP_c1
+
     # condition met?
     ifelse(prop.BF.H0[[i]]>eta & prop.BF.H1[[i]]>eta, condition <- TRUE, condition <- FALSE)
     print(list(N, prop.BF.H1[[i]]))
     i <- i+1
   }
+  
+  ifelse(gen.H0==TRUE, 
+           measures <- cbind(medBF.H0,medBF.H1, prop.BF.H0, prop.BF.H1, medBFc.H0, medBFc.H1, medBFu.H0, medBFu.H1, PMP.c0, PMP.c1),
+           measures <- cbind(medBF.H1, prop.BF.H1, medBFc.H1, medBFu.H1, PMP.c1)
+           )
+  
 
-  measures <- cbind(medBF.H0,medBF.H1, prop.BF.H0, prop.BF.H1, medBFc.H0, medBFc.H1, medBFu.H0, medBFu.H1)
   
   print(Sys.time() - start)
   
@@ -121,23 +134,49 @@ dev.off()
 
 
 ```{r plots results}
-b <- as.data.frame(measures2)
+b_small <- as.data.frame(measures)
 
-b$medBF01.H0 <- as.numeric(unlist(b$medBF01.H0))
-b$medBF10.H1 <- as.numeric(unlist(b$medBF10.H1))
-b$meanBF01.H0 <- as.numeric(unlist(b$mean.log.BF01.H0))
-b$meanBF10.H1 <- as.numeric(unlist(b$mean.log.BF10.H1))
-b$propBF01.H0 <- as.numeric(unlist(b$prop.BF01.H0))
-b$propBF10.H1 <- as.numeric(unlist(b$prop.BF10.H1))
+for(i in 1:length(b_small)){
+  b_small[,i] <- as.numeric(unlist(b_small[,i]))
+}
 
-b$N <- seq(32, 74, 2)
+b_small$N <- seq(32, 31 + nrow(b_small)*2, 2)
+b_medium$N <- seq(32, 31 + nrow(b_medium)*2, 2)
+b_large$N <- seq(32, 31 + nrow(b_large)*2, 2)
+
+# Grid plot
+
+colors <- c("Large Effect" = "red", "Medium Effect" = "blue", "Small Effect" = "orange")
+
+ggplot(b_small, aes(x=N)) +
+  geom_line(data=b_large, aes(x=N, y=prop.BF.H1), color="red", size=1) +
+  geom_line(data=b_large, aes(x=N, y=PMP.c1), color="red", linetype="dashed", size=1) +
+
+  geom_line(data=b_medium, aes(x=N, y=prop.BF.H1), color="blue", size=1) +
+  geom_line(data=b_medium, aes(x=N, y=PMP.c1), color="blue", linetype="dashed", size=1) +
+
+  geom_line(data=b_small, aes(x=N, y=prop.BF.H1), color="orange", size=1) +
+  geom_line(data=b_small, aes(x=N, y=PMP.c1), color="orange", linetype="dashed", size=1) +
+
+  #geom_line(data=b_small, aes(x=N, y=prop.BF.H0), color="black") +
+  #geom_line(data=b_small, aes(x=N, y=PMP.c0), color="black", linetype="dashed") +
+  
+  geom_hline(yintercept=.8, col="black", linetype="dashed") +
+
+  # labs(x = "N", y = "Proportion/PMP", color = "Legend") + scale_color_manual(values = colors)
+
+
+
+
+
+
 
 # Plot Proportions of BF>3
 pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/prop.BF10.H1.pdf", width = 6, height = 6)
-ggplot(data=b, aes(x=N, y=propBF10.H1)) + 
+ggplot(data=b, aes(x=N, y=prop.BF.H1)) + 
   geom_line(linewidth=1) +
   geom_hline(yintercept=.8, col="red", linetype="dashed") +
-  labs(y="Proportion of BF01 larger than 3", x="N") + theme_grey(base_size = 22)
+  labs(y="Proportion of BF01 larger than 3", x="N") #+ theme_grey(base_size = 22)
 dev.off()
 
 # Plot Median BF
@@ -146,7 +185,7 @@ ggplot(data=b) +
   geom_line(aes(x=N, y=meanBF01.H0, color="H0"), linewidth=1) +
   geom_line(aes(x=N, y=meanBF10.H1, color="H1"), linewidth=1) +
   labs(y="Mean log(BF)", x="N", color="Correct Hypothesis") + 
-  theme_grey(base_size = 22) +
+  #theme_grey(base_size = 22) +
   theme(legend.position = c(.3, .90))
 dev.off()
 
@@ -159,7 +198,7 @@ meas.occ <- rep(list(vector("list", 6)), 8)
 occ <- rep(NA, 8)
 
 for(i in 1:8){
-  meas.occ[i][[1]] <- dat.gen(m=10000, t.points = c(1:(i+2)))
+  meas.occ[i][[1]] <- dat.gen.vec(m=10000, t.points = c(1:(i+2)))
   occ[i] <- (i+2)
 }
 
@@ -171,12 +210,12 @@ occ.meanBF01.H0 <- rep(NA, 8)
 occ.meanBF10.H1 <- rep(NA, 8)
 
 for(i in 1:8){
-occ.medBF01.H0[i] <- meas.occ[[i]][1]
-occ.medBF10.H1[i] <- meas.occ[[i]][2]
-occ.propBF01.H0[i] <- meas.occ[[i]][3]
-occ.propBF10.H1[i] <- meas.occ[[i]][4]
-occ.meanBF01.H0[i] <- meas.occ[[i]][5]
-occ.meanBF10.H1[i] <- meas.occ[[i]][6]
+  occ.medBF01.H0[i] <- meas.occ[[i]][1]
+  occ.medBF10.H1[i] <- meas.occ[[i]][2]
+  occ.propBF01.H0[i] <- meas.occ[[i]][3]
+  occ.propBF10.H1[i] <- meas.occ[[i]][4]
+  occ.meanBF01.H0[i] <- meas.occ[[i]][5]
+  occ.meanBF10.H1[i] <- meas.occ[[i]][6]
 }
 
 d2 <- as.data.frame(cbind(as.numeric(occ.medBF01.H0), as.numeric(occ.medBF10.H1), as.numeric(occ.propBF01.H0), as.numeric(occ.propBF10.H1),as.numeric(occ.meanBF01.H0), as.numeric(occ.meanBF10.H1), occ))
