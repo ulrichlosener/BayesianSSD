@@ -7,8 +7,24 @@ output:
   pdf_document: default
 ---
 
+# Bayesian Sample Size Determination for Multilevel Models
 
-```{r Packages, message=FALSE}
+This is the R Markdown script to plot the results of the simulation study needed for the Bayesian Sample Size Determination for a multilevel model parameter. 
+
+The parameter of interest is $\beta_2$, the coefficient of interaction between the predictors *time* and *condition.* If this coefficient is positive this indicates that people receiving the intervention get better faster over time. 
+
+The hypotheses of interest are:
+$$H_0: \beta_2 = 0$$
+$$H_1: \beta_2 > 0$$
+
+The two main functions to carry out the simulations are
+
+1. **fct_data_generation** which generates m datasets under each hypopthesis, fits the multilevel model to each dataset and calculates m Bayes Factors for each hypothesis
+
+2. **fct_BayesianSSD** which repeatedly applies fct_data_generation for different sample sizes (N) until the power criterion is met
+
+First, we load the necessary packages
+```{r Packages, message=FALSE, eval=FALSE}
 library(tidyr)       # pipes
 library(dplyr)       # pipes
 library(ggplot2)     # plots
@@ -19,69 +35,69 @@ library(MASS)        # multinorm - already included in lme4?
 library(latex2exp)   # latex notation in plots
 ```
 
+Here we plot the results of the SSD and check how different inferential tools (proportion of BFs, PMPs) behave 
+```{r plots results, eval=FALSE}
 
-SSD Function
-```{r Function SSD}
-SSD <- function(m=1000, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, eta=.8){
-  
-  source("fct_data_generation.R")
-  start <- Sys.time()
-  
-  gen.H0 <- FALSE    # generate data for the null hypothesis?
-  N <- 30            # initial N
-  condition <- FALSE # condition initially false  
-  i <- 1             # iteration number
-  maxit <- 300
-  
-  medBF.H0 <- vector("list", maxit)
-  medBF.H1 <- vector("list", maxit)
-  medBFc.H0 <- vector("list", maxit)
-  medBFc.H1 <- vector("list", maxit)
-  medBFu.H0 <- vector("list", maxit)
-  medBFu.H1 <- vector("list", maxit)
-  prop.BF.H0 <- vector("list", maxit)
-  prop.BF.H1 <- vector("list", maxit)
-  PMP.c0 <- vector("list", maxit)
-  PMP.c1 <- vector("list", maxit)
+# Version 1
 
-  while (condition==F) {
-    
-    N <- N+2
-    results <- dat.gen.vec(gen.H0=gen.H0, m=m, N=N, t.points=t.points, var.u0=var.u0, var.u1=var.u1, var.e=var.e, eff.size=eff.size, BFthres=BFthres)
-    
-    if(gen.H0==TRUE){
-    medBF.H0[[i]] <- results$Median_BF0
-    prop.BF.H0[[i]] <- results$Prop_BF0
-    medBFc.H0[[i]] <- results$Median_BF_c0
-    medBFu.H0[[i]] <- results$Median_BF_u0
-    PMP.c0[[i]] <- results$MeanPMP_c0
-    }
-    
-    medBF.H1[[i]] <- results$Median_BF1
-    prop.BF.H1[[i]] <- results$Prop_BF1
-    medBFc.H1[[i]] <- results$Median_BF_c1
-    medBFu.H1[[i]] <- results$Median_BF_u1
-    PMP.c1[[i]] <- results$MeanPMP_c1
+mydat <- as.data.frame(cbind(unlist(medBF.H1), unlist(prop.BF.H1),  unlist(prop.BFc.H1), unlist(medBFc.H1), unlist(medBFu.H1), unlist(PMP.c1)))
+colnames(mydat) <- c("medBF.H1", "prop.BF.H1", "prop.BFc.H1", "medBFc.H1", "medBFu.H1", "PMP.c1")
+props <- as.data.frame(cbind(c(mydat[, "prop.BF.H1"], mydat[, "prop.BFc.H1"], mydat[, "PMP.c1"]), rep(c(0,1,2), each=96)))
+colnames(props) <- c("BF", "type")
 
-    # condition met?
-    ifelse(prop.BF.H0[[i]]>eta & prop.BF.H1[[i]]>eta, condition <- TRUE, condition <- FALSE)
-    print(list(N, prop.BF.H1[[i]]))
-    i <- i+1
-  }
-  
-  ifelse(gen.H0==TRUE, 
-           measures <- cbind(medBF.H0,medBF.H1, prop.BF.H0, prop.BF.H1, medBFc.H0, medBFc.H1, medBFu.H0, medBFu.H1, PMP.c0, PMP.c1),
-           measures <- cbind(medBF.H1, prop.BF.H1, medBFc.H1, medBFu.H1, PMP.c1)
-           )
-  
-  print(Sys.time() - start)
-  
-  return(measures[i-1,])
+# prop vs. prop.c vs. PMP
+props <- as.data.frame(cbind(c(mydat[, "prop.BF.H1"], mydat[, "prop.BFc.H1"], mydat[, "PMP.c1"]), rep(c(0,1,2), each=96)))
+colnames(props) <- c("BF", "type")
 
-}
+pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/props.pmp.pdf", width = 6, height = 6)
+
+ggplot(props) + 
+  geom_line(aes(x=rep(seq(32,222, 2), 3), y=BF, colour=factor(type), linetype=factor(type)), linewidth=1) +
+  xlab("N") + ylab("") + 
+  scale_colour_discrete(name = "Measure of Evidence for H1", labels = c("Proportion of BF10 larger than 3", "Proportion of BFc larger than 3", "PMP")) +
+  scale_linetype_discrete(name = "Measure of Evidence for H1", labels = c("Proportion of BF10 larger than 3", "Proportion of BFc larger than 3", "PMP")) +
+  theme(legend.position=c(.75, 0.2))
+
+dev.off()
+
+# medBF vs. medBF.c
+medBFs <- as.data.frame(cbind(c(mydat[, "medBF.H1"], mydat[, "medBFc.H1"]), rep(c(0,1), each=96)))
+colnames(medBFs) <- c("medBF", "type")
+
+ggplot(medBFs) + 
+  geom_line(aes(x=rep(seq(32,222, 2), 2), y=medBF, colour=factor(type)), linewidth=1) +
+  xlab("N") + ylab("Median BF") + xlim(c(32,180)) + ylim(c(0,100000)) +
+  scale_colour_discrete(name = "Type of Measure", labels = c("Median BF10", "Median BF.c")) +
+  theme(legend.position=c(.1, 0.2))
+
+
+# Version 2
+
+dat <- as.data.frame(cbind(unlist(medBF.H1), unlist(prop.BF.H1), unlist(medBFc.H1), unlist(medBFu.H1), unlist(PMP.c1)))
+colnames(dat) <- c("medBF.H1", "prop.BF.H1", "medBFc.H1", "medBFu.H1", "PMP.c1")
+dat <- dat[1:95,]
+
+ggplot(dat) + 
+  geom_line(aes(x=seq(32,220, 2), y=medBFc.H1, colour="red")) +
+  geom_line(aes(x=seq(32,220, 2), y=medBFc.H1, colour="blue"))
+
+# Proportion vs PMP
+prop.pmp <- as.data.frame(cbind(c(dat[, "prop.BF.H1"], dat[, "PMP.c1"]), rep(c(0,1), each=95)))
+colnames(prop.pmp) <- c("proppmp", "Measure")
+
+pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/prop.pmp.pdf", width = 6, height = 6)
+
+ggplot(prop.pmp) + 
+  geom_line(aes(x=rep(seq(32,220, 2), 2), y=proppmp, colour=factor(Measure)), linewidth=1) +
+  xlab("N") + ylab("") + 
+  scale_colour_discrete(name = "Measure of Evidence for H1", labels = c("Proportion of BFs larger than 3", "PMP")) +
+  theme(legend.position=c(.75, 0.2))
+
+dev.off()
 ```
 
-```{r eff size}
+Here we examine the consequences of different effect sizes in the SSD procedure and plot the results
+```{r eff size, eval=FALSE}
 
 effsize <- rep(list(vector("list", 6)), 24)
 eff <- rep(NA, 24)
@@ -107,14 +123,12 @@ eff.meanBF01.H0[i] <- effsize[[i]][5]
 eff.meanBF10.H1[i] <- effsize[[i]][6]
 }
 
-
 df.eff <- as.data.frame(cbind(as.numeric(eff.medBF10.H1), as.numeric(eff.propBF10.H1), as.numeric(eff.meanBF10.H1), eff))
 colnames(df.eff) <- c("medBF10.H1", "propBF10.H1", "meanBF10.H1","eff.size")
 
 mean_prop <- c(as.numeric(eff.meanBF10.H1), as.numeric(eff.propBF10.H1))
 df.eff.long <- as.data.frame(cbind(mean_prop, rep(c(0,1), each=24), eff))
 colnames(df.eff.long) <- c("mean_prop", "ind", "eff")
-
 
 pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/effsize.pdf", width = 6, height = 6)
 
@@ -127,21 +141,10 @@ theme_grey(base_size = 22) +
 theme(legend.position = c(.2, .90))
 
 dev.off()
-
 ```
 
-
-```{r plots results}
-b_small <- as.data.frame(measures)
-
-for(i in 1:length(b_small)){
-  b_small[,i] <- as.numeric(unlist(b_small[,i]))
-}
-
-b_small$N <- seq(32, 31 + nrow(b_small)*2, 2)
-b_medium$N <- seq(32, 31 + nrow(b_medium)*2, 2)
-b_large$N <- seq(32, 31 + nrow(b_large)*2, 2)
-
+Here we summarise the results in a grid plot
+```{r plots results2, eval=FALSE}
 # Grid plot
 
 ggplot(b_small, aes(x=N)) +
@@ -161,7 +164,6 @@ ggplot(b_small, aes(x=N)) +
 
   # labs(x = "N", y = "Proportion/PMP", color = "Legend") + scale_color_manual(values = colors)
 
-
 # Plot Proportions of BF>3
 pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/prop.BF10.H1.pdf", width = 6, height = 6)
 ggplot(data=b, aes(x=N, y=prop.BF.H1)) + 
@@ -179,12 +181,10 @@ ggplot(data=b) +
   #theme_grey(base_size = 22) +
   theme(legend.position = c(.3, .90))
 dev.off()
-
-
 ```
 
-
-```{r measurement occasions}
+Here we investigate the effect of changing the number of measurement occasions per person and plot the results
+```{r measurement occasions, eval=FALSE}
 n.occ <- 10
 meas.occ <- rep(list(vector("list", 5)), n.occ)
 occ <- rep(NA, n.occ)
@@ -227,8 +227,8 @@ ggplot(data=d3) + geom_line(aes(y=propBFs, x=occasion, group=hyp, colour=factor(
 dev.off()
 ```
 
-
-```{r Function ratios}
+Here we examine the effect of changing the ratio of the two variances $\sigma_u1$ and $\sigma_e$. This is inspired by chapter 9 of the book by Moerbeek and Teerenstra "Power Analysis of Trials with Multilevel Data"
+```{r Function ratios, eval=FALSE}
 
 rat <- rep(list(vector("list", 5)), 11)
 slop.var <- rep(NA, 11)
@@ -270,7 +270,8 @@ dev.off()
 ```
 
 
-```{r}
+Here we tried to make the SSD into a C++ Function - work in progress
+```{r, eval=FALSE}
 library(Rcpp)
 cppFunction('NumericVector SSDc(int m, NumericVector tpoints, double var.u1, double var.e, double eff.size, double BFthres, double eta){
   int N = 30;
@@ -285,16 +286,10 @@ cppFunction('NumericVector SSDc(int m, NumericVector tpoints, double var.u1, dou
   }
 }')
 
-
-
-
 ```
 
-
-
-
-Binary Algorithm
-```{r Function SSD Binary}
+Here we present the SSD in form of a binary algorithm in order to reduce the number of iterations and therefore save computation time. Note that this procedure cannot produce the plots above, it can only be used to determine the N necessary to meet the power criterion. 
+```{r Function SSD Binary, eval=FALSE}
 
 SSD.binary <- function(m=1000, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, eta=.8){
   source("fct_data_generation.R")
@@ -324,7 +319,7 @@ SSD.binary <- function(m=1000, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e
   
 
 
-```{r}
+```{r, eval=FALSE}
 df.prop.bf10.H1 <- as.data.frame(cbind(prop.bf10.H1[1:length(na.exclude(ss.seq))], na.exclude(ss.seq)))
 colnames(df.prop.bf10.H1) <- c("prop.bf", "N")
 
@@ -343,7 +338,7 @@ df.prop.bfs <- data.frame(c(bf10.H1, bf01.H0), rep(c("1","0"), each=m))
 colnames(df.prop.bfs) <- c("BF", "hyp")
 ```
 
-```{r}
+```{r, eval=FALSE}
 # H0
 pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/Samp.dist.H0.pdf", width = 6, height = 6)
 
@@ -376,29 +371,7 @@ dev.off()
 ```
 
 
-
-# H0
-bf01.H0.trim <- bf01.H0 #bf01.H0[bf01.H0<=quantile(bf01.H0, probs = .85)]
-  
-  plot(density(bf01.H0.trim), xlim=range(0:50))
-  polygon(c(density(bf01.H0.trim)$x[density(bf01.H0.trim)$x >= 3 ], 3),
-        c(density(bf01.H0.trim)$y[density(bf01.H0.trim)$x >= 3 ], 0),
-        col = "slateblue1",
-        border = 1)
-
-p0 <- ggplot() + geom_density(aes(x=bf01.H0.trim), size=1) + 
-  xlim(0, 50) + 
-  geom_vline(xintercept=3, linetype=2, color="red") +
-  annotate("text", x=2, y=.02, label="BFthresh=3", angle=90) +
-  labs(title = TeX(r"(Sampling Distribution of $BF_{01}$ under $H_0$ for $N=20$)"), y="density", x=TeX("$BF_{01}$"))
-
-dpb0 <- ggplot_build(p0)
-
-p0 + geom_area(data=data.frame(x=dpb0$data[[1]]$x[dpb0$data[[1]]$x>3],
-                       y=dpb0$data[[1]]$y[dpb0$data[[1]]$x>3]),
-            aes(x=x, y=y), fill="grey")
-
-```{r}
+```{r Sampling Distributions of BFs, eval=FALSE}
 
 # both
 
@@ -436,10 +409,8 @@ dev.off()
 
 ```
 
-
-```{r}
-### SINGULARITY DIAGNOSTICS
-
+Singularity Diagnostics
+```{r, eval=FALSE}
 marker <- rep(NA, m)
 for(i in 1:m){
   marker[i] <- ifelse(isSingular(modelsH0[[1]][[i]]), 1, 0)
@@ -472,117 +443,3 @@ summary(badstderr)
 ```
 
 
-
-```{r PDFs}
-
-pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/BF_PMP_H0.pdf",   
-    width = 6, # The width of the plot in inches
-    height = 6) # The height of the plot in inches
-
-  par(mfrow=c(2,4))
-  plot(x=ss.seq, y=medbf10.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median BF10 under H0")
-  plot(x=ss.seq, y=medbf01.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median BF01 under H0")
-  plot(x=ss.seq, y=medbf.1u.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median BF unconstr. under H0")
-  plot(x=ss.seq, y=medbf.1c.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median BF complement under H0")
-  
-  plot(x=ss.seq, y=medpmp.a1.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPa under H0")
-  plot(x=ss.seq, y=medpmp.b1.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPb under H0")
-  plot(x=ss.seq, y=medpmp.c1.H0[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPc under H0")
-  plot(x=ss.seq, y=prop.bf01.H0[1:length(ss.seq)], type="l", xlab="N", ylab="proportion of BFs larger 3 under H0")
-  abline(h=.8, col="red")
-
-dev.off()
-
-
-pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/BF_PMP_H1_medium.pdf",   
-    width = 6, # The width of the plot in inches
-    height = 6) # The height of the plot in inches
-
-  par(mfrow=c(2,4))
-  plot(x=ss.seq, y=medbf10.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF10 under H1")
-  plot(x=ss.seq, y=medbf01.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF01 under H1")
-  plot(x=ss.seq, y=medbf.1u.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF unconstr. under H1")
-  plot(x=ss.seq, y=medbf.1c.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median BF complement under H1")
-  
-  plot(x=ss.seq, y=medpmp.a1.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPa under H1")
-  plot(x=ss.seq, y=medpmp.b1.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPb under H1")
-  plot(x=ss.seq, y=medpmp.c1.H1[1:length(ss.seq)], type="l", xlab="N", ylab="median PMPc under H1")
-  plot(x=ss.seq, y=prop.bf10.H1[1:length(ss.seq)], type="l", xlab="N", ylab="proportion of BFs larger 3 under H1")
-  abline(h=eff.size, col="red")
-
-dev.off()
-
-```
-
-
-The resulting Bayes Factors tell us that $H_1$ is the hypothesis most likely to be true out of the set of considered hypotheses. We therefore conclude that in the treatment group ($X_1$), the symptom level increases more over time compared to the control group ($X_0$).
-
-## Descriptives/plots
-
-```{r Descriptives, echo=F}
-# plot individual trajectories
-ggplot(data = dat, aes(x = t, y = y, group = id, color = as.factor(treat))) + geom_line()
-
-boxplot(formula = y ~ treat, data = dat) # in a boxplot
-```
-
-As can be seen from the figure, individuals differ in their intercept and slope. Subjects in the treatment group ($X_1$) seem to have systematically higher slopes as compared to those in the control group ($X_0$), suggesting an interaction effect between time and treatment. Also, the variability of y scores seems to increase over time, rendering the assumption of compound symmetry untenable. 
-
-
-```{r Plots, echo=F}
-# one line for everyone
-ggplot(data = dat, aes(x = t, y = y), color = treat) + 
-  geom_jitter(aes(color = treat), width = .1, height = 0) + 
-  geom_smooth(method = "lm", formula = 'y ~ x')
-# base
-p <- ggplot(data = dat, aes(x = t, y = y, group = id, color = treat)) + geom_jitter(width = .1, height = 0)
-# different lines for treat
-p  + geom_smooth(group = 0, method = "lm", data = subset(dat, dat$treat == 0), formula = 'y ~ x') + geom_smooth(group = 0, method = "lm", data = subset(dat, dat$treat == 1), formula = 'y ~ x')
-
-```
-
-## Intercept only model
-
-```{r Intercept only}
-int.only <- lmer(y ~ 1 + (1 | id), data = dat)
-summary(int.only) 
-logLik(int.only)           
-performance::icc(int.only) 
-p + geom_smooth(method = "lm", formula = y ~ 1, se = F)
-```
-
---------------------------------------------------------------------------------
-
-## Appendix: In-between models
-
-### Level 1 predictor: time
-
-```{r Lvl 1}
-lvl1 <- lmer(y ~ time + (1 | id), data = dat)
-summary(lvl1)
-logLik(lvl1)           
-anova(int.only, lvl1)  
-performance::icc(lvl1) 
-```
-
-
-### Level 2 predictor: treat
-
-```{r Lvl 2}
-lvl2 <- lmer(y ~ time + treat + (1 | id), data = dat)
-summary(lvl2)
-logLik(lvl2)           # -1063.76 (df=5) - better fit compared to lvl1 predictor only
-anova(lvl1, lvl2)      # likelihood ratio test significant
-performance::icc(lvl2) # 0.044
-vcov.lmerMod(lvl2)
-```
-
-### Random slope for time
-
-```{r Random slope}
-rand.slop <- lmer(y ~ time + treat + (1 + time | id), data = dat)
-summary(rand.slop)
-logLik(rand.slop) 
-anova(lvl2, rand.slop)
-performance::icc(rand.slop)
-```

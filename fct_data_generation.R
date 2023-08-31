@@ -68,8 +68,8 @@ dat.gen <- function(m=100, N=72, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var
                        Median_BF_c1 = median(unlist(BFc.H1)),
                        Median_BF_u0 = median(unlist(BFu.H0)),
                        Median_BF_u1 = median(unlist(BFu.H1)),
-                       PMP_c0 = mean(unlist(pmp.c.H0)),
-                       PMP_c1 = mean(unlist(pmp.c.H1))
+                       MeanPMP_c0 = mean(unlist(pmp.c.H0)),
+                       MeanPMP_c1 = mean(unlist(pmp.c.H1))
                        )
           )
 }
