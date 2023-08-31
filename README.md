@@ -11,6 +11,7 @@ $$H_\1: \beta_2>0$$
 - The file "fct_data_generation_vec" contains a vectorized version of the function to generate datasets under both hypotheses at hand and to calculate Bayes Factors for each dataset.
 - The file "fct_BayesianSSD" contains the function needed to execute the sample size determination using the data generating function. 
 
+## Algorithm 2
 The file "Algorithm2" contains a refinement of the algorithm used in the simulation. Using a binary search, it reduces the amount of necessary iterations to maximally 12 (see Fu, Hoijtink, and Moerbeek, 2020 for a brief overview). 
 
 
