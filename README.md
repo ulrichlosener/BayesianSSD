@@ -2,7 +2,8 @@
 
 In this project, multilevel data under two hypotheses is simulated to which a multilevel model is fitted. Bayes factors for each hypotheses are calculated and their dependence on sample size (and other quantities of interest) is investigated. The hypothesis $H_0$ claims that there is no effect of the intervention (i.e., no slope difference in the two groups) while $H_1$ postulates that people in the intervention condition get better faster. In terms of model parameters, this means that $H_0$ states that the interaction parameter between time and condition, $\beta_2$ is equal to zero while $H_1$ states that $\beta_2$ is larger than zero.
 
-$$H_0: \beta_2=0 \\ H_1: \beta_2>0$$
+$$H_0: \beta_2=0$$ 
+$$H_1: \beta_2>0$$
 
 ## Description of files
 
