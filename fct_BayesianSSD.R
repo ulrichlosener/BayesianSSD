@@ -47,7 +47,7 @@ SSD <- function(m=1000, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.02, e
   PMP.c0 <- vector("list", maxit)
   PMP.c1 <- vector("list", maxit)
   
-  while (N!=222) {  # while the power criterion is not met, do the following
+  while (condition=F) {  # while the power criterion is not met, do the following
 
     N <- N+2 # add one person per group in each iteration (i.e., increase N by 2)
     
