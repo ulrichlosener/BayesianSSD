@@ -1,40 +1,22 @@
-
-
 # Bayesian Sample Size Determination for Multilevel Models with Longitudinal Data
 
-The file "Simulation.RMD" contains simulated multilevel data to which a multilevel model is fitted. Hypotheses about the parameter of the interaction coefficient ($\beta_2$) are tested using Bayesian techniques. The pdf files contain plots produced by the simulation of different paramters of the Bayes Factor in relation to sample size for $\beta_2=1$. The competing hypotheses are: $H_1: \beta_2>0$ and $H_2: \beta_2=0$ 
+In this project, multilevel data under two hypotheses is simulated to which a multilevel model is fitted. Bayes factors for each hypotheses are calculated and their dependence on sample size (and other quantities of interest) is investigated. The hypothesis $H_0$ claims that there is no effect of the intervention (i.e., no slope difference in the two groups) while $H_1$ postulates that people in the intervention condition get better faster. In terms of model parameters, this means that $H_0$ states that the interaction parameter between time and condition, $\beta_2$ is equal to zero while $H_1$ states that $\beta_2$ is larger than zero.
 
+$$H_0: \beta_2=0$$    
+
+$$H_1: \beta_2>0$$
+
+The purpose of this project is to create a function which determines the sample size necessary to accept the true hypothesis with a user-specified certainty.
+
+## Description of files
+
+- The file "Simulation.RMD" contains code for plotting results of the simulation study. This requires prior execution of the two other main functions "fct_data_generation_vec" and "fct_BayesianSSD".
+- The file "fct_data_generation_vec" contains a vectorized version of the function to generate datasets under both hypotheses at hand and to calculate Bayes Factors for each dataset.
+- The file "fct_BayesianSSD" contains the function needed to execute the sample size determination using the data generating function. 
+
+## Algorithm 2
 The file "Algorithm2" contains a refinement of the algorithm used in the simulation. Using a binary search, it reduces the amount of necessary iterations to maximally 12 (see Fu, Hoijtink, and Moerbeek, 2020 for a brief overview). 
 
-## Data generation
-
-In the trajectory of treatment interventions individuals may vary both in their initial symptom level and rate of change over time. That is, people might start out the trial with different severity of their symptoms and some of them might get better while others stay the same or even get worse. Because of random allocation to treatment conditions, the initial (pre-treatment) differences in symptom levels is unrelated to the treatment groups. The further symptom trajectory of an individual, however, depends on which treatment condition they are assigned to. Therefore, I choose a model which accounts for interindividual differences at the first measurement (random intercept) that cannot be explained by the treatment condition and which allows individuals to have different rates of change over time (random slopes). These differences in slopes, in turn, can be (partly) explained by membership of a treatment condition. 
-
-It is common in longitudinal intervention data that measurements closer in time correlate higher with each other than measurements further separated in time. Also, variability in the outcome typically increases over time as individuals tend to be more similar in the beginning of a study and subsequently change at different rates. This renders the assumption of compound symmetry (constant variances and covariances over time) practically untenable. To account for this, a multilevel regression model with random intercept and random slopes is used in the following simulation.  
-
-Level 1 (within subjects) regression equation: 
-$$Y_{ti} = \pi_{0i} + pi_{1i}T_{ti} + e_{ti}$$ where $Y_{ti}$ denotes the score on the outcome variable of individual i ($i=1,2,...,N$) at measurement occasion t ($t=1,2,...,n$) and $$e_{ti} \sim N(0, \sigma^2)$$
-
-Level 2 (between subjects) regression equations: 
-$$\pi_{0i} = \beta_0 + u_{0i}$$ 
-$$\pi_{1i} = \beta_1 + \beta_2 X_i + u_{1i}$$ where $X_i$ denotes the treatment condition with $X_i=0$ for the control group and $X_i=1$ for the treatment group. The random part is captured by $u_{0i}$ and $u_{1i}$ with the former representing the individual deviation from the treatment group intercept, and the latter representing the individual deviation from the treatment group slope. Note that membership of the treatment group ($X_i$) does not predict initial symptom levels ($\pi_{0i}$) but only the rate of change over time ($\pi_{1i}$).
-
-By substitution we get the combined regression equation containing both levels.
-
-$$Y_{ti} = \beta_0 + u_{0i} + (\beta_1 + \beta_2 X_i + u_{1i})*T_t + e_{ij}$$
-Or
-$$Y_{ti} = \beta_0 + u_{0i} + \beta_1 T_t + \beta_2 X_i T_t + u_{1i} T_t + e_{ij}$$
-
-Here, $\beta_0$ represents the average value for y at $t_0$ and $\beta_1$ the average rate of change for subjects in the control condition. The average difference in the rate of change of y scores of subjects in the control condition (relative to those in the treatment condition) is represented by $\beta_2$. Thus, $\beta_2$ denotes the interaction between time and treatment, indicating the difference in slopes between the two treatment groups. To test whether a treatment intervention has an effect on symptom level, this is the parameter of interest. 
-
-The population distribution of $u_{0i}$ and $u_{1i}$ is assumed to be bivariate normal $N(0, \Sigma_u)$ with
-```math
-$$\Sigma_u = 
-\begin{bmatrix} 
-\sigma^2_{u0} & \sigma_{u0u1} \\
-\sigma_{u0u1} & \sigma^2_{u1}
-\end{bmatrix}$$
-```
 
 
 
