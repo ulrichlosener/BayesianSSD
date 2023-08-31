@@ -6,6 +6,8 @@ $$H_0: \beta_2=0$$
 
 $$H_1: \beta_2>0$$
 
+The purpose of this project is to create a function which determines the sample size necessary to accept the true hypothesis with a user-specified certainty.
+
 ## Description of files
 
 - The file "Simulation.RMD" contains code for plotting results of the simulation study. This requires prior execution of the two other main functions "fct_data_generation_vec" and "fct_BayesianSSD".
