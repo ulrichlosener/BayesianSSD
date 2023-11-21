@@ -13,18 +13,18 @@
 # t.points captures the number and position of measurement occasions per person
 # var.u0 is the intercept variance
 # var.u1 is the slope variance
-# eff.size is the effect size (sqrt(var.u1) / beta2)
+# eff.size is the effect size (beta2/ sqrt(var.u1))
 # BFthres is the threshold which a BF needs to exceed in order to be considered of importance
 # eta is the desired power level (i.e., the probability of obtaining a BF>BFthres)
 # These values are passed on to the data generation function "dat.gen.vec"
 
-SSD <- function(m=1000, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, eta=.8){
+SSD <- function(m=1000, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, eta=.8) {
   
   library(lme4)       # fit multilevel model
   library(bain)       # Bayesian estimation
   
-  source("fct_data_generation.R") # get the function for data generation
-  start <- Sys.time()             # measure time it takes to execute function
+  source("fct_data_generation_vec_hand.R") # get the function for data generation
+  start <- Sys.time()                      # measure time it takes to execute function
   
   N <- 30            # initial N
   condition <- FALSE # condition initially false  
@@ -47,12 +47,12 @@ SSD <- function(m=1000, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.02, e
   PMP.c0 <- vector("list", maxit)
   PMP.c1 <- vector("list", maxit)
   
-  while (condition=F) {  # while the power criterion is not met, do the following
+  while (condition==F) {  # while the power criterion is not met, do the following
 
     N <- N+2 # add one person per group in each iteration (i.e., increase N by 2)
     
     # store results of data generation and BFs in an object 
-    results <- dat.gen.vec(gen.H0=T, m=m, N=N, t.points=t.points, var.u0=var.u0, var.u1=var.u1, var.e=var.e, eff.size=eff.size, BFthres=BFthres)
+    results <- dat.gen.vec.hand(gen.H0=T, m=m, N=N, t.points=t.points, var.u0=var.u0, var.u1=var.u1, var.e=var.e, eff.size=eff.size, BFthres=BFthres)
     
     if(gen.H0==TRUE){
       medBF.H0[[i]] <- results$Median_BF0
@@ -82,8 +82,7 @@ SSD <- function(m=1000, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.02, e
          measures <- cbind(medBF.H1, prop.BF.H1, prop.BFc.H1, medBFc.H1, medBFu.H1, PMP.c1)
   )
   
-  print(Sys.time() - start)
-  
   return(measures[i-1,])
   
+  print(Sys.time() - start)
 }

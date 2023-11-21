@@ -30,9 +30,7 @@
 # eff.size <- .8
 
 
-dat.gen.vec <- function(gen.H0=T, m=10000, N=72, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, fraction=1){
-  library(bain) # Bayesian estimation
-  library(lme4) # Multilevel models
+dat.gen.vec.hand <- function(gen.H0=T, m=1000, N=72, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, fraction=1, b0=0, b1=0, cov=0){
   
   set.seed(123) # set a seed for reproducibility
   
@@ -41,25 +39,40 @@ dat.gen.vec <- function(gen.H0=T, m=10000, N=72, t.points=c(1,2,3,4,5), var.u0=0
   n <- length(t.points)                                                      # number of measurements per person
   t <- rep(t.points, N)                                                      # time variable storage 
   id <- rep(seq_len(N), each=n)                                              # create ID variable
+  b <- fraction/N
   treat <- as.numeric(as.character(gl(n=2, k=n, length=N*n, labels=c(0,1)))) # create treatment variable
   dat0 <- data.frame(id, treat, t)                                           # create an empty data frame with all variables except the outcome
-
+  sigma <- matrix(c(var.u0,cov,cov,var.u1),2,2)                              # variance covariance matrix of random effects
+  
+  
   # Empty objects for the results to be stored in
+  fit0.H0 <- vector("list", m)
+  fit1.H0 <- vector("list", m)
+  comp0.H0 <- vector("list", m)
+  comp1.H0 <- vector("list", m)
+  
+  fit0.H1 <- vector("list", m)
+  fit1.H1 <- vector("list", m)
+  comp0.H1 <- vector("list", m)
+  comp1.H1 <- vector("list", m)
+  
   BFs.H0 <- vector("list", m)
   BFs.H1 <- vector("list", m)
   BFc.H0 <- vector("list", m)
   BFc.H1 <- vector("list", m)
   BFu.H0 <- vector("list", m)
   BFu.H1 <- vector("list", m)
+  BFu1.H0 <- vector("list", m)
+  BFu0.H1 <- vector("list", m)
   pmp.c.H0 <- vector("list", m)
   pmp.c.H1 <- vector("list", m)
   
   beta2.H1 <- eff.size * sqrt(var.u1) # calculate the beta2 based on effect size and slope variance
-
+  
   gen.H0 <- T # generate data under H0?
   
   if (gen.H0==T){
-    make.y0 <- function(N){cbind(dat0, rep(rnorm(N, 0, sqrt(var.u1)), each=n)*t + rnorm(N*n, 0, sqrt(var.e)))} # make a function for creating outcome variable y under H0
+    make.y0 <- function(N){cbind(dat0, b0 + rep(mvrnorm(n=N, mu=0, Sigma=sigma), each=n) + rep(mvrnorm(n=N, mu=0, Sigma=sigma), each=n)*t + rnorm(N*n, 0, sqrt(var.e)))} # make a function for creating outcome variable y under H0
     dat.H0.empty <- rep(list(N),m)                                                                             # make m empty datasets
     dat.H0 <- lapply(dat.H0.empty, make.y0)                                                                    # apply this function to each empty dataset
     dat.H0 <- lapply(dat.H0, setNames, c("id", "treat", "t", "y"))                                             # give names to variables in dataset
@@ -71,57 +84,66 @@ dat.gen.vec <- function(gen.H0=T, m=10000, N=72, t.points=c(1,2,3,4,5), var.u0=0
     sig.H0 <- lapply(models.H0, function(x) {as.matrix(vcov(x)[3,3])})                                         # extract and store the variance of each estimate
     # finally, calculate and store Bayes Factors (BFs) and posterior model probabilities (PMP) for H0
     results.H0 <- lapply(1:m, function(i) {
-      result.H0 <- bain(x = est.H0[i], Sigma = list(sig.H0[[i]]), hypothesis = hypotheses, n=N, group_parameters = 1, joint_parameters = 0, fraction=fraction)
-      BFs.H0[[i]] <<- result.H0$BFmatrix[2, 1]
-      BFc.H0[[i]] <<- result.H0$fit$BF.c[2] 
-      BFu.H0[[i]] <<- result.H0$fit$BF.u[2]
-      pmp.c.H0[[i]] <<- result.H0$fit$PMPc[2]
+      comp0.H0[[i]] <<- dnorm(0, mean=0, sd=sqrt(sig.H0[[i]]/b))
+      fit0.H0[[i]] <<- dnorm(0, mean=est.H0[i], sd=sqrt(sig.H0[[i]]))
+      comp1.H0[[i]] <<- pnorm(0, mean=0, sd=sqrt(sig.H0[[i]]/b))
+      fit1.H0[[i]] <<- 1-pnorm(0, mean=est.H0[i], sd=sqrt(sig.H0[[i]]))
+      
+      BFu.H0[[i]] <<- fit0.H0[[i]]/comp0.H0[[i]]
+      BFc.H0[[i]] <<- BFu.H0[[i]]
+      BFu1.H0[[i]] <<- fit1.H0[[i]]/comp1.H0[[i]]
+      BFs.H0[[i]] <<- BFu.H0[[i]]/BFu1.H0[[i]]
     })
   }
   
   # do the same under H1
-  make.y1 <- function(N){cbind(dat0, beta2.H1*treat*t + rep(rnorm(N, 0, sqrt(var.u1)), each=n)*t + rnorm(N*n, 0, sqrt(var.e)))}
+  make.y1 <- function(N){cbind(dat0, b0 + rep(mvrnorm(n=N, mu=0, Sigma=sigma), each=n) + b1*t + beta2.H1*treat*t + rep(mvrnorm(n=N, mu=0, Sigma=sigma), each=n)*t + rnorm(N*n, 0, sqrt(var.e)))}
   dat.H1.empty <- rep(list(N),m)
   dat.H1 <- lapply(dat.H1.empty, make.y1)
   dat.H1 <- lapply(dat.H1, setNames, c("id", "treat", "t", "y"))
   pars.H1 <- list(theta = c(0, sqrt(var.u1), sqrt(var.e)), fixef = c(0, 0, eff.size * sqrt(var.u1)))
   models.H1 <- lapply(dat.H1, function(x) 
-    {lmer(y ~ t + t:treat + (t | id), data=x, start = pars.H1, control = lmerControl(calc.derivs = F))})
+  {lmer(y ~ t + t:treat + (t | id), data=x, start = pars.H1, control = lmerControl(calc.derivs = F))})
   est.H1 <- as.numeric(lapply(models.H1, function(x) {x@beta[3]}))
   names(est.H1) <- rep("t:treat", m)
   sig.H1 <- lapply(models.H1, function(x) {as.matrix(vcov(x)[3,3])})
   results.H1 <- lapply(1:m, function(i) {
-    result.H1 <- bain(x = est.H1[i], Sigma = list(sig.H1[[i]]), hypothesis = hypotheses, n=N, group_parameters = 1, joint_parameters = 0, fraction=fraction)
-    BFs.H1[[i]] <<- result.H1$BFmatrix[1, 2]
-    BFc.H1[[i]] <<- result.H1$fit$BF.c[1]
-    BFu.H1[[i]] <<- result.H1$fit$BF.u[1]
-    pmp.c.H1[[i]] <<- result.H1$fit$PMPc[1]
+    comp0.H1[[i]] <<- dnorm(0, mean=0, sd=sqrt(sig.H1[[i]]/b))
+    fit0.H1[[i]] <<- dnorm(0, mean=est.H1[i], sd=sqrt(sig.H1[[i]]))
+    comp1.H1[[i]] <<- pnorm(0, mean=0, sd=sqrt(sig.H1[[i]]/b))
+    fit1.H1[[i]] <<- 1-pnorm(0, mean=est.H1[i], sd=sqrt(sig.H1[[i]]))
     
+    BFu.H1[[i]] <<- fit1.H1[[i]]/comp1.H1[[i]]
+    BFc.H1[[i]] <<- (fit1.H1[[i]]/comp1.H1[[i]]) / ((1-fit1.H1[[i]])/(1-comp1.H1[[i]]))
+    BFu0.H1[[i]] <<- fit0.H1[[i]]/comp0.H1[[i]]
+    BFs.H1[[i]] <<- BFu.H1[[i]]/BFu0.H1[[i]]
   })
+  
+
   
   # generate output if data under H0 was generated
   ifelse(gen.H0==T, output <-  list(Median_BF0 = median(unlist(BFs.H0)), 
-                              Median_BF1 = median(unlist(BFs.H1)), 
-                              Prop_BF0 = length(BFs.H0[BFs.H0>BFthres])/m,
-                              Prop_BF1 = length(BFs.H1[BFs.H1>BFthres])/m,
-                              Prop_BFc0 = length(BFc.H0[BFc.H0>BFthres])/m,
-                              Prop_BFc1 = length(BFc.H1[BFc.H1>BFthres])/m,
-                              Median_BF_c0 = median(unlist(BFc.H0)),
-                              Median_BF_c1 = median(unlist(BFc.H1)),
-                              Median_BF_u0 = median(unlist(BFu.H0)),
-                              Median_BF_u1 = median(unlist(BFu.H1)),
-                              MeanPMP_c0 = mean(unlist(pmp.c.H0)),
-                              MeanPMP_c1 = mean(unlist(pmp.c.H1))
-                    ),
-  # generate output when data under H0 was NOT generated
-                    output <- list(Median_BF1 = median(unlist(BFs.H1)), 
-                              Prop_BF1 = length(BFs.H1[BFs.H1>BFthres])/m,
-                              Prop_BFc1 = length(BFc.H1[BFc.H1>BFthres])/m,
-                              Median_BF_c1 = median(unlist(BFc.H1)),
-                              Median_BF_u1 = median(unlist(BFu.H1)),
-                              MeanPMP_c1 = mean(unlist(pmp.c.H1))
-                )
-        )
+                                    Median_BF1 = median(unlist(BFs.H1)), 
+                                    Prop_BF0 = length(BFs.H0[BFs.H0>BFthres])/m,
+                                    Prop_BF1 = length(BFs.H1[BFs.H1>BFthres])/m,
+                                    Prop_BFc0 = length(BFc.H0[BFc.H0>BFthres])/m,
+                                    Prop_BFc1 = length(BFc.H1[BFc.H1>BFthres])/m,
+                                    Median_BF_c0 = median(unlist(BFc.H0)),
+                                    Median_BF_c1 = median(unlist(BFc.H1)),
+                                    Median_BF_u0 = median(unlist(BFu.H0)),
+                                    Median_BF_u1 = median(unlist(BFu.H1))
+                                    #MeanPMP_c0 = mean(unlist(pmp.c.H0)),
+                                    #MeanPMP_c1 = mean(unlist(pmp.c.H1))
+    ),
+    # generate output when data under H0 was NOT generated
+    output <- list(Median_BF1 = median(unlist(BFs.H1)), 
+                   Prop_BF1 = length(BFs.H1[BFs.H1>BFthres])/m,
+                   Prop_BFc1 = length(BFc.H1[BFc.H1>BFthres])/m,
+                   Median_BF_c1 = median(unlist(BFc.H1)),
+                   Median_BF_u1 = median(unlist(BFu.H1))
+                   #MeanPMP_c1 = mean(unlist(pmp.c.H1))
+                   )
+    )
   return(output)
 }
 

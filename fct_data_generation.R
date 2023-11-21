@@ -8,7 +8,7 @@
 # eff.size <- .8
 
 
-dat.gen <- function(m=100, N=72, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3){
+dat.gen <- function(m=1000, N=72, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3){
   library(bain)        # Bayesian estimation
   
   set.seed(123)
@@ -70,6 +70,6 @@ dat.gen <- function(m=100, N=72, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var
                        Median_BF_u1 = median(unlist(BFu.H1)),
                        MeanPMP_c0 = mean(unlist(pmp.c.H0)),
                        MeanPMP_c1 = mean(unlist(pmp.c.H1))
-                       )
-          )
+  )
+  )
 }
