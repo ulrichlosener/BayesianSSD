@@ -36,7 +36,7 @@ madbf.12 <- rep(NA, n.steps)
 madbf.21 <- rep(NA, n.steps)
 meanpmp1 <- rep(NA, n.steps)
 meanpmp2 <- rep(NA, n.steps)
-    
+
 for(j in 1:n.steps){
   
   N <- j+1 #*4+16      # number of subjects
@@ -115,5 +115,4 @@ plot(x=ss.seq, y=madbf.21[1:length(ss.seq)], type="l", xlab="N", ylab="variance 
 
 #dev.off()
 
-    
-    
+
