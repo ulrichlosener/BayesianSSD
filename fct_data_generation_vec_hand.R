@@ -1,7 +1,7 @@
 
 ################################################################################
 ########## This function generates datasets under both hypotheses, #############
-###### fits a multilevel model to each one and calculates BFs  and PMPs ########
+########## fits a multilevel model to each one and calculates BFs  #############
 ################################################################################
 
 # This function works as follows: under each hypothesis, m datasets are generated.
@@ -21,30 +21,32 @@
 # eta is the desired power level (i.e., the probability of obtaining a BF>BFthres)
 # These values are passed on to the data generation function "dat.gen.vec"
 
-# var.u0 <- .0333
-# var.u1 <- .1
-# var.e <- .0262
-# t.points <- c(1,2,3,4,5)
-# N <- 30
-# m <- 100
-# eff.size <- .8
-# fraction <- 1
-# cov <- 0
+# m=1000
+# N=30
+# log=F
+# t.points=c(1,2,3,4,5)
+# var.u0=0.0333
+# var.u1=.1
+# var.e=.02
+# eff.size=.8
+# BFthres=3
+# fraction=1
+# cov=0
 
-dat.gen.vec.hand <- function(m=1000, N=30, t.points=c(1,2,3,4,5), var.u0=0.0333, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, fraction=1, b0=0, b1=0, cov=0){
+dat.gen.vec.hand <- function(m=1000, N=30, log=F, t.points=c(1,2,3,4,5), var.u0=0.0333, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, fraction=1, cov=0){
   
   set.seed(123) # set a seed for reproducibility
   
   hypotheses <- c("t:treat>0;t:treat=0") # these are the two competing hypotheses of interest. 
   
   n <- length(t.points)                                                      # number of measurements per person
-  t <- rep(t.points, N)                                                      # time variable storage 
+  ifelse(log==F, t <- rep(t.points, N), t <- rep(log(t.points), N))          # time variable  
   id <- rep(seq_len(N), each=n)                                              # create ID variable
-  b <- fraction/N
+  b <- fraction/N                                                            # fraction of the data for prior
   treat <- as.numeric(as.character(gl(n=2, k=n, length=N*n, labels=c(0,1)))) # create treatment variable
   dat0 <- data.frame(id, treat, t)                                           # create an empty data frame with all variables except the outcome
   sigma <- matrix(c(var.u0,cov,cov,var.u1),2,2)                              # variance covariance matrix of random effects
-  rand.eff <- MASS::mvrnorm(n=N, mu=c(0,0), Sigma=sigma)
+  rand.eff <- MASS::mvrnorm(n=N, mu=c(0,0), Sigma=sigma)                     # draw radnom effects u0 and u1 from multivaraite normal distribution
   
   
   # Empty objects for the results to be stored in

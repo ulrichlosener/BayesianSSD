@@ -10,7 +10,7 @@ library(mgcv)        # extracting vcov matrices
 library(bain)        # Bayesian estimation
 library(MASS)        # multinorm - already included in lme4?
 
-bayesianSSD <- function(m=100, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, eta=.8) {
+SSD2 <- function(m=100, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, eta=.8, log=F) {
   
   suppressMessages({
   

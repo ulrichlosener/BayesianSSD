@@ -18,7 +18,7 @@
 # eta is the desired power level (i.e., the probability of obtaining a BF>BFthres)
 # These values are passed on to the data generation function "dat.gen.vec"
 
-SSD <- function(m=1000, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, eta=.8) {
+SSD <- function(m=1000, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, eta=.8, log=F) {
   
   library(lme4)       # fit multilevel model
   library(bain)       # Bayesian estimation
