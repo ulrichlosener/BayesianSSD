@@ -24,7 +24,7 @@
 # m=1000
 # N=30
 # log=F
-# t.points=c(1,2,3,4,5,6,7,8,9,10)
+# t.points=c(1,2,3,4,5)
 # var.u0=0.0333
 # var.u1=.1
 # var.e=.02
@@ -32,8 +32,9 @@
 # BFthres=3
 # fraction=1
 # cov=0
+# Neff="worst"
 
-dat.gen.vec.hand <- function(m=1000, N=30, log=F, t.points=c(1,2,3,4,5), var.u0=0.0333, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, fraction=1, cov=0, Neff="worst"){
+dat.gen.vec.hand <- function(m=1000, N=30, log=F, t.points=c(0,1,2,3,4,5), var.u0=0.0333, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, fraction=1, cov=0, Neff="worst"){
   
   set.seed(123) # set a seed for reproducibility
   
@@ -42,7 +43,11 @@ dat.gen.vec.hand <- function(m=1000, N=30, log=F, t.points=c(1,2,3,4,5), var.u0=
   n <- length(t.points)                                                      # number of measurements per person
   ifelse(log==F, 
          t <- rep(t.points, N), 
-         t <- rep(log(t.points), N))                                         # time variable: linear or loglinear
+         ifelse(min(t.points)==0,
+                t <- rep(log(t.points+1), N),                                # if the first timepoint is zero, we add 1 to all timepoints because log(0) is undefined
+                t <- rep(log(t.points), N)
+                )
+         )                                                                   # time variable: linear or loglinear
   id <- rep(seq_len(N), each=n)                                              # create ID variable
   ifelse(Neff=="worst",
         b <- fraction/N,
@@ -84,7 +89,7 @@ dat.gen.vec.hand <- function(m=1000, N=30, log=F, t.points=c(1,2,3,4,5), var.u0=
     dat.H0 <- lapply(dat.H0.empty, make.y0)                                                                    # apply this function to each empty dataset
     dat.H0 <- lapply(dat.H0, setNames, c("id", "treat", "t", "y"))                                             # give names to variables in dataset
     pars.H0 <- list(theta = c(0, sqrt(var.u1), sqrt(var.e)), fixef = c(0, 0, 0))                             # make a list of fixed and random effects under H0
-    models.H0 <- lapply(dat.H0, function(x) {
+      models.H0 <- lapply(dat.H0, function(x) {
       lmer(y ~ t + t:treat + (t | id), data=x, start = pars.H0, control = lmerControl(calc.derivs = F))})      # fit a multilevel model (mlm) to each dataset
     est.H0 <- as.numeric(lapply(models.H0, function(x) {x@beta[3]}))                                           # extract and store estimates for beta2 from each mlm
     names(est.H0) <- rep("t:treat", m)                                                                         # name the estimates for beta2
@@ -93,7 +98,7 @@ dat.gen.vec.hand <- function(m=1000, N=30, log=F, t.points=c(1,2,3,4,5), var.u0=
     results.H0 <- lapply(1:m, function(i) {
       comp0.H0[[i]] <<- dnorm(0, mean=0, sd=sqrt(sig.H0[[i]]/b))
       fit0.H0[[i]] <<- dnorm(0, mean=est.H0[i], sd=sqrt(sig.H0[[i]]))
-      comp1.H0[[i]] <<- pnorm(0, mean=0, sd=sqrt(sig.H0[[i]]/b))
+      comp1.H0[[i]] <<- 1-pnorm(0, mean=0, sd=sqrt(sig.H0[[i]]/b))
       fit1.H0[[i]] <<- 1-pnorm(0, mean=est.H0[i], sd=sqrt(sig.H0[[i]]))
       
       BFu.H0[[i]] <<- fit0.H0[[i]]/comp0.H0[[i]]
@@ -112,14 +117,14 @@ dat.gen.vec.hand <- function(m=1000, N=30, log=F, t.points=c(1,2,3,4,5), var.u0=
   dat.H1 <- lapply(dat.H1, setNames, c("id", "treat", "t", "y"))
   pars.H1 <- list(theta = c(0, sqrt(var.u1), sqrt(var.e)), fixef = c(0, 0, eff.size * sqrt(var.u1)))
   models.H1 <- lapply(dat.H1, function(x) {
-    lmer(y ~ t + t:treat + (t | id), data=x)})
+    lmer(y ~ t + t:treat + (t | id), data=x, start = pars.H1, control = lmerControl(calc.derivs = F))})
   est.H1 <- as.numeric(lapply(models.H1, function(x) {x@beta[3]}))
   names(est.H1) <- rep("t:treat", m)
   sig.H1 <- lapply(models.H1, function(x) {as.matrix(vcov(x)[3,3])})
   results.H1 <- lapply(1:m, function(i) {
     comp0.H1[[i]] <<- dnorm(0, mean=0, sd=sqrt(sig.H1[[i]]/b))
     fit0.H1[[i]] <<- dnorm(0, mean=est.H1[i], sd=sqrt(sig.H1[[i]]))
-    comp1.H1[[i]] <<- pnorm(0, mean=0, sd=sqrt(sig.H1[[i]]/b))
+    comp1.H1[[i]] <<- 1-pnorm(0, mean=0, sd=sqrt(sig.H1[[i]]/b))
     fit1.H1[[i]] <<- 1-pnorm(0, mean=est.H1[i], sd=sqrt(sig.H1[[i]]))
     
     BFu.H1[[i]] <<- fit1.H1[[i]]/comp1.H1[[i]]

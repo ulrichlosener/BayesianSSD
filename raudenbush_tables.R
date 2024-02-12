@@ -3,49 +3,86 @@
 
 ## Part I: Neff = N
 
-
-# Table 3: frequency of observation and sample size
-library(lme4)
+# Table 1: Effect of study duration and frequency of observation
 
 
+d <- rep(NA, 7)
+f <- rep(NA, 7)
+t_m <- vector("list", 7)
+res.tab1 <- vector("list", 7)
 
-res.tab3 <- vector("list", 11)
-
-for(i in 1:11){
-  res.tab3[[i]] <- dat.gen.vec.hand(m=1000, N=150, t.points = c(1:(i+2)), var.u1 = .001, Neff = "worst")
+for(i in 1:7){
+d[i] <- 5                                   # study duration
+ifelse(i==1, f[i] <- 0.5, f[i] <- i-1)      # frequency
+t_m[[i]] <- seq(from=0, to=d[i], by=1/f[i])
 }
 
-res150 <- res.tab3
 
-prop_BF0_150 <- rep(NA, 11)
-prop_BF1_150 <- rep(NA, 11)
-med_BF0_150 <- rep(NA, 11)
-med_BF1_150 <- rep(NA, 11)
-m_est0_150 <- m_est1_150 <- rep(NA, 11)
-m_var0_150 <- rep(NA, 11)
-m_var1_150 <- rep(NA, 11)
-comp_0.H0 <- rep(NA, 11)
-comp_1.H1 <- rep(NA, 11)
-fit_0.H0 <- rep(NA, 11)
-fit_1.H1 <- rep(NA, 11)
-med_BFu0_150 <- rep(NA, 11) 
-med_BFu1_150 <- rep(NA, 11) 
+# increasing frequency while holding duration constant
+for(i in 6:7){
+  start <- Sys.time()
+  res.tab1[[i]] <- dat.gen.vec.hand(m=10000, N=100, t.points = t_m[[i]]+1, var.u1 = .001, Neff = "worst")
+  print(i)
+  print(Sys.time()-start)
+}
 
-for(i in 1:11){
-  med_BF0_150[i] <- res150[[i]][1]
-  med_BF1_150[i] <- res150[[i]][2]
-  prop_BF0_150[i] <- res150[[i]][3]
-  prop_BF1_150[i] <- res150[[i]][4]
-  m_est0_150[i] <- res150[[i]][11]
-  m_est1_150[i] <- res150[[i]][12]
-  m_var0_150[i] <- res150[[i]][13]
-  m_var1_150[i] <- res150[[i]][14]
-  comp_0.H0[i] <- res150[[i]][15]
-  comp_1.H1[i] <- res150[[i]][16]
-  fit_0.H0[i] <- res150[[i]][17]
-  fit_1.H1[i] <- res150[[i]][18]
-  med_BFu0_150[i] <- res150[[i]][19]
-  med_BFu1_150[i] <- res150[[i]][20]
+tab1_d5 <- res.tab1
+
+# save(tab1_d2, tab1_d3, tab1_d4, tab1_d5, tab1_d6, file = "table1.RData")
+
+# plot results
+med_BF0_d5 <- rep(NA, 6)
+med_BF1_d5 <- rep(NA, 6)
+prop_BF0_d5 <- rep(NA, 6)
+prop_BF1_d5 <- rep(NA, 6)
+
+
+for(i in 5:6){
+  med_BF0_d5[i] <- tab1_d5[[i+1]][1]
+  med_BF1_d5[i] <- tab1_d5[[i+1]][2]
+  prop_BF0_d5[i] <- tab1_d5[[i+1]][3]
+  prop_BF1_d5[i] <- tab1_d5[[i+1]][4]
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Table 2: study duration and sample size
+  # holding N constant while increasing D
+
+library(lme4)
+
+res.tab2 <- vector("list", 7)
+
+for(i in 1:7){
+  start <- Sys.time()
+  res.tab2[[i]] <- dat.gen.vec.hand(m=10000, N=250, t.points = c(1:(i+2)), var.u1 = .001, Neff = "worst")
+  print(i)
+  print(Sys.time()-start)
+}
+
+tab2_N250 <- res.tab2
+
+prop_BF0_N250 <- rep(NA, 5)
+prop_BF1_N250 <- rep(NA, 5)
+med_BF0_N250 <- rep(NA, 5)
+med_BF1_N250 <- rep(NA, 5)
+
+for(i in 1:7){
+  med_BF0_N250[i] <- tab2_N250[[i]][1]
+  med_BF1_N250[i] <- tab2_N250[[i]][2]
+  prop_BF0_N250[i] <- tab2_N250[[i]][3]
+  prop_BF1_N250[i] <- tab2_N250[[i]][4]
 }
 
 
@@ -54,52 +91,58 @@ for(i in 1:11){
 res.tab3c <- vector("list", 10)
 meas.occs <- vector("list", 10)
 
-for(i in 5:10){
+for(i in 6:10){
   meas.occs[[i]] <-  seq(1,3,by=1/i)
-  res.tab3c[[i]] <- dat.gen.vec.hand(m=1000, N=150, t.points = seq(1,5,by=1/i), var.u1 = .001, Neff = "worst")
+  res.tab3c[[i]] <- dat.gen.vec.hand(m=1000, N=135, t.points = seq(1,5,by=1/i), var.u1 = .001, Neff = "worst")
   print(i)
 }
 
-res150c <- res.tab3c
+res135c <- res.tab3c
 
-prop_BF0_150c <- rep(NA, 10)
-prop_BF1_150c <- rep(NA, 10)
-med_BF0_150c <- rep(NA, 10)
-med_BF1_150c <- rep(NA, 10)
-m_est0_150c <- m_est1_150c <- rep(NA, 10)
-m_var0_150c <- rep(NA, 10)
-m_var1_150c <- rep(NA, 10)
-comp_0.H0c <- rep(NA, 10)
-comp_1.H1c <- rep(NA, 10)
-fit_0.H0c <- rep(NA, 10)
-fit_1.H1c <- rep(NA, 10)
-med_BFu0_150c <- rep(NA, 10) 
-med_BFu1_150c <- rep(NA, 10) 
+prop_BF0_135c <- rep(NA, 10)
+prop_BF1_135c <- rep(NA, 10)
+med_BF0_135c <- rep(NA, 10)
+med_BF1_135c <- rep(NA, 10)
+m_est0_135c <- m_est1_135c <- rep(NA, 10)
+m_var0_135c <- rep(NA, 10)
+m_var1_135c <- rep(NA, 10)
+comp_0.H0_135c <- rep(NA, 10)
+comp_1.H1_135c <- rep(NA, 10)
+fit_0.H0_135c <- rep(NA, 10)
+fit_1.H1_135c <- rep(NA, 10)
+med_BFu0_135c <- rep(NA, 10) 
+med_BFu1_135c <- rep(NA, 10) 
 
 for(i in 1:10){
-  med_BF0_150c[i] <- res150c[[i]][1]
-  med_BF1_150c[i] <- res150c[[i]][2]
-  prop_BF0_150c[i] <- res150c[[i]][3]
-  prop_BF1_150c[i] <- res150c[[i]][4]
-  m_est0_150c[i] <- res150c[[i]][11]
-  m_est1_150c[i] <- res150c[[i]][12]
-  m_var0_150c[i] <- res150c[[i]][13]
-  m_var1_150c[i] <- res150c[[i]][14]
-  comp_0.H0c[i] <- res150c[[i]][15]
-  comp_1.H1c[i] <- res150c[[i]][16]
-  fit_0.H0c[i] <- res150c[[i]][17]
-  fit_1.H1c[i] <- res150c[[i]][18]
-  med_BFu0_150c[i] <- res150c[[i]][19]
-  med_BFu1_150c[i] <- res150c[[i]][20]
+  med_BF0_135c[i] <- res135c[[i]][1]
+  med_BF1_135c[i] <- res135c[[i]][2]
+  prop_BF0_135c[i] <- res135c[[i]][3]
+  prop_BF1_135c[i] <- res135c[[i]][4]
+  m_est0_135c[i] <- res135c[[i]][11]
+  m_est1_135c[i] <- res135c[[i]][12]
+  m_var0_135c[i] <- res135c[[i]][13]
+  m_var1_135c[i] <- res135c[[i]][14]
+  comp_0.H0_135c[i] <- res135c[[i]][15]
+  comp_1.H1_135c[i] <- res135c[[i]][16]
+  fit_0.H0_135c[i] <- res135c[[i]][17]
+  fit_1.H1_135c[i] <- res135c[[i]][18]
+  med_BFu0_135c[i] <- res135c[[i]][19]
+  med_BFu1_135c[i] <- res135c[[i]][20]
 }
 
 
 
   
 
+plot(seq(3,12), prop_BF0_50c, type="l")
+plot(seq(3,12), med_BF0_50c, type="l")
+
 plot(seq(3,12), prop_BF0_150c, type="l")
-plot(seq(3,12), m_est0_150c, type="l")
-plot(seq(3,12), m_var0_150c, type="l")
+plot(seq(3,12), med_BF0_150c, type="l")
+
+
+plot(seq(3,12), m_est0_50c, type="l")
+plot(seq(3,12), m_var0_50c, type="l")
 
 par(mfrow=c(1,2))
 plot(seq(3,12), comp_0.H0c, type="l")
@@ -111,6 +154,20 @@ plot(seq(3,12), med_BF1_150c, type="l")
 
 plot(seq(3,12), fit_0.H0c, type="l")
 plot(seq(3,12), fit_1.H1c, type="l")
+
+
+ratio135 <- vector("list", 10)
+
+for(i in 1:10){
+  ratio135[[i]] <- m_est0_135c[[i]]^2/m_var0_135c[[i]]*2
+}
+
+par(mfrow=c(1,2))
+plot(seq(3,12), ratio135, type="l")
+plot(seq(3,12), ratio50, type="l")
+
+
+
 
 
 #pdf(file = "C://Users/losen002/OneDrive - Universiteit Utrecht/Desktop/PhD/BayesianSSD/meas.occ.50.pdf", width = 6, height = 6)
