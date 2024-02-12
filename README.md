@@ -10,8 +10,8 @@ The purpose of this project is to create a function which determines the sample 
 
 ## Description of files
 
-- The file "Simulation.RMD" contains code for plotting results of the simulation study. This requires prior execution of the two other main functions "fct_data_generation_vec" and "fct_BayesianSSD".
-- The file "fct_data_generation_vec" contains a vectorized version of the function to generate datasets under both hypotheses at hand and to calculate Bayes Factors for each dataset.
+- The file "Simulation.RMD" contains code for plotting results of the simulation study. This requires prior execution of the two other main functions "fct_data_generation_vec_hand" and "fct_BayesianSSD".
+- The file "fct_data_generation_vec_hand" contains a vectorized version of the function to generate datasets under both hypotheses at hand and to calculate Bayes Factors for each dataset.
 - The file "fct_BayesianSSD" contains the function needed to execute the sample size determination using the data generating function. 
 
 ## Algorithm 2
