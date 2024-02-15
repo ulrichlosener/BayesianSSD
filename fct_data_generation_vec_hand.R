@@ -34,7 +34,7 @@
 # cov=0
 # Neff="worst"
 
-dat.gen.vec.hand <- function(m=1000, N=30, log=F, t.points=c(0,1,2,3,4,5), var.u0=0.0333, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, fraction=1, cov=0, Neff="worst"){
+dat.gen.vec.hand <- function(m=1000, N=30, log=F, t.points=c(0,1,2,3,4), var.u0=0.0333, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, fraction=1, cov=0, Neff="worst"){
   
   set.seed(123) # set a seed for reproducibility
   
