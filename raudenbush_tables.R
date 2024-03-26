@@ -12,36 +12,42 @@ t_m <- vector("list", 7)
 res.tab1 <- vector("list", 7)
 
 for(i in 1:7){
-d[i] <- 5                                   # study duration
+d[i] <- 2                                   # study duration
 ifelse(i==1, f[i] <- 0.5, f[i] <- i-1)      # frequency
 t_m[[i]] <- seq(from=0, to=d[i], by=1/f[i])
 }
 
 
 # increasing frequency while holding duration constant
-for(i in 6:7){
-  start <- Sys.time()
-  res.tab1[[i]] <- dat.gen.vec.hand(m=10000, N=100, t.points = t_m[[i]]+1, var.u1 = .001, Neff = "worst")
-  print(i)
-  print(Sys.time()-start)
+
+set.seed(123)
+for(i in 2:7){
+  suppressMessages({
+    start <- Sys.time()
+    res.tab1[[i]] <- dat.gen.hand(m=10000, N=100, t.points = t_m[[i]], var.u1 = .001, Neff = "worst")
+    print(i)
+    print(Sys.time()-start)
+  })
 }
 
-tab1_d5 <- res.tab1
 
-# save(tab1_d2, tab1_d3, tab1_d4, tab1_d5, tab1_d6, file = "table1.RData")
+
+tab1_d2 <- res.tab1
+
+# save(tab1_d2, file = "tab1_d2.RData")
 
 # plot results
-med_BF0_d5 <- rep(NA, 6)
-med_BF1_d5 <- rep(NA, 6)
-prop_BF0_d5 <- rep(NA, 6)
-prop_BF1_d5 <- rep(NA, 6)
+med_BF0_d2 <- rep(NA, 6)
+med_BF1_d2 <- rep(NA, 6)
+prop_BF0_d2 <- rep(NA, 6)
+prop_BF1_d2 <- rep(NA, 6)
 
 
-for(i in 5:6){
-  med_BF0_d5[i] <- tab1_d5[[i+1]][1]
-  med_BF1_d5[i] <- tab1_d5[[i+1]][2]
-  prop_BF0_d5[i] <- tab1_d5[[i+1]][3]
-  prop_BF1_d5[i] <- tab1_d5[[i+1]][4]
+for(i in 1:6){
+  med_BF0_d2[i] <- tab1_d2[[i+1]][1]
+  med_BF1_d2[i] <- tab1_d2[[i+1]][2]
+  prop_BF0_d2[i] <- tab1_d2[[i+1]][3]
+  prop_BF1_d2[i] <- tab1_d2[[i+1]][4]
 }
 
 
@@ -62,77 +68,79 @@ for(i in 5:6){
 
 library(lme4)
 
-res.tab2 <- vector("list", 7)
+res.tab2 <- vector("list", 10)
+N <- seq(20, 200, by=20)
 
-for(i in 1:7){
+
+
+for(i in 1:10){
   start <- Sys.time()
-  res.tab2[[i]] <- dat.gen.vec.hand(m=10000, N=250, t.points = c(1:(i+2)), var.u1 = .001, Neff = "worst")
+  res.tab2[[i]] <- dat.gen.vec.hand(m=1000, N=N[i], t.points = c(0,1,2), var.u1 = .001, Neff = "worst")
   print(i)
   print(Sys.time()-start)
 }
 
-tab2_N250 <- res.tab2
+  tab2_N140 <- res.tab2
 
-prop_BF0_N250 <- rep(NA, 5)
-prop_BF1_N250 <- rep(NA, 5)
-med_BF0_N250 <- rep(NA, 5)
-med_BF1_N250 <- rep(NA, 5)
+prop_BF0_N140 <- rep(NA, 5)
+prop_BF1_N140 <- rep(NA, 5)
+med_BF0_N140 <- rep(NA, 5)
+med_BF1_N140 <- rep(NA, 5)
 
 for(i in 1:7){
-  med_BF0_N250[i] <- tab2_N250[[i]][1]
-  med_BF1_N250[i] <- tab2_N250[[i]][2]
-  prop_BF0_N250[i] <- tab2_N250[[i]][3]
-  prop_BF1_N250[i] <- tab2_N250[[i]][4]
+  med_BF0_N140[i] <- tab2_N140[[i]][1]
+  med_BF1_N140[i] <- tab2_N140[[i]][2]
+  prop_BF0_N140[i] <- tab2_N140[[i]][3]
+  prop_BF1_N140[i] <- tab2_N140[[i]][4]
 }
 
 
 
 # holding study duration constant
-res.tab3c <- vector("list", 10)
-meas.occs <- vector("list", 10)
+res.tab3 <- vector("list", 8)
 
-for(i in 6:10){
-  meas.occs[[i]] <-  seq(1,3,by=1/i)
-  res.tab3c[[i]] <- dat.gen.vec.hand(m=1000, N=135, t.points = seq(1,5,by=1/i), var.u1 = .001, Neff = "worst")
+for(i in 1:8){
+  res.tab3[[i]] <- dat.gen.vec.hand.no.t(m=1000, N=100, t.points = seq(0,i+1), var.u1 = .001, Neff = "worst")
   print(i)
 }
 
-res135c <- res.tab3c
+res.b <- res.tab3
 
-prop_BF0_135c <- rep(NA, 10)
-prop_BF1_135c <- rep(NA, 10)
-med_BF0_135c <- rep(NA, 10)
-med_BF1_135c <- rep(NA, 10)
-m_est0_135c <- m_est1_135c <- rep(NA, 10)
-m_var0_135c <- rep(NA, 10)
-m_var1_135c <- rep(NA, 10)
-comp_0.H0_135c <- rep(NA, 10)
-comp_1.H1_135c <- rep(NA, 10)
-fit_0.H0_135c <- rep(NA, 10)
-fit_1.H1_135c <- rep(NA, 10)
-med_BFu0_135c <- rep(NA, 10) 
-med_BFu1_135c <- rep(NA, 10) 
+prop_BF0.b <- rep(NA, 10)
+prop_BF1.b <- rep(NA, 10)
+med_BF0.b <- rep(NA, 10)
+med_BF1.b <- rep(NA, 10)
+m_est0.b <- rep(NA, 10)
+m_est1.b <- rep(NA, 10)
+m_var0.b <- rep(NA, 10)
+m_var1.b <- rep(NA, 10)
+comp_0.H0.b <- rep(NA, 10)
+comp_1.H1.b <- rep(NA, 10)
+fit_0.H0.b <- rep(NA, 10)
+fit_1.H1.b <- rep(NA, 10)
+med_BFu0.b <- rep(NA, 10) 
+med_BFu1.b <- rep(NA, 10) 
 
 for(i in 1:10){
-  med_BF0_135c[i] <- res135c[[i]][1]
-  med_BF1_135c[i] <- res135c[[i]][2]
-  prop_BF0_135c[i] <- res135c[[i]][3]
-  prop_BF1_135c[i] <- res135c[[i]][4]
-  m_est0_135c[i] <- res135c[[i]][11]
-  m_est1_135c[i] <- res135c[[i]][12]
-  m_var0_135c[i] <- res135c[[i]][13]
-  m_var1_135c[i] <- res135c[[i]][14]
-  comp_0.H0_135c[i] <- res135c[[i]][15]
-  comp_1.H1_135c[i] <- res135c[[i]][16]
-  fit_0.H0_135c[i] <- res135c[[i]][17]
-  fit_1.H1_135c[i] <- res135c[[i]][18]
-  med_BFu0_135c[i] <- res135c[[i]][19]
-  med_BFu1_135c[i] <- res135c[[i]][20]
+  med_BF0.b[i] <- res.b[[i]][1]
+  med_BF1.b[i] <- res.b[[i]][2]
+  prop_BF0.b[i] <- res.b[[i]][3]
+  prop_BF1.b[i] <- res.b[[i]][4]
+  m_est0.b[i] <- res.b[[i]][11]
+  m_est1.b[i] <- res.b[[i]][12]
+  m_var0.b[i] <- res.b[[i]][13]
+  m_var1.b[i] <- res.b[[i]][14]
+  comp_0.H0.b[i] <- res.b[[i]][15]
+  comp_1.H1.b[i] <- res.b[[i]][16]
+  fit_0.H0.b[i] <- res.b[[i]][17]
+  fit_1.H1.b[i] <- res.b[[i]][18]
+  med_BFu0.b[i] <- res.b[[i]][19]
+  med_BFu1.b[i] <- res.b[[i]][20]
 }
 
+plot(unlist(prop_BF0), type="l", ylim=c(-1,1))
 
 
-  
 
 plot(seq(3,12), prop_BF0_50c, type="l")
 plot(seq(3,12), med_BF0_50c, type="l")
@@ -310,6 +318,25 @@ plot(seq(3,13),prop_BF1_25, type="l", xlab = "number of measurements", ylab = "p
 
 
 
+# table 3: frequency of observation and sample size
+d <- 4
+f <- c(0.5, seq(1:6))
+t_m <- vector("list", 7)
+
+res.tab3 <- vector("list", 7)
+
+for(i in 1:7){
+  t_m[[i]] <- seq(from=0, to=d, by=1/f[i])
+}
+
+
+
+for(i in 1:7){
+  start <- Sys.time()
+  res.tab2[[i]] <- dat.gen.vec.hand(m=10000, N=20, t.points = t_m[[i]], var.u1 = .001, Neff = "worst")
+  print(i)
+  print(Sys.time()-start)
+}
 
 
 
