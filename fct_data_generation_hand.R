@@ -8,13 +8,21 @@
 # eff.size <- .8
 # fraction <- 1
 
-dat.gen.hand <- function(m=1000, N=72, t.points=c(0,1,2,3,4), var.u0=0, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, fraction=1, Neff="worst"){
+dat.gen.hand <- function(m=1000, N=72, t.points=c(0,1,2,3,4), 
+                         var.u0=0, var.u1=.1, var.e=.02, cov=0, eff.size=.8, 
+                         BFthres=3, fraction=1, Neff="worst", log=F){
   
   ifelse(Neff=="worst",
          b <- fraction/N,
          b <- fraction/N*n)
   n <- length(t.points)
-  t <- rep(t.points, N)                                                      # time variable storage 
+  ifelse(log==F, 
+         t <- rep(t.points, N), 
+         ifelse(min(t.points)==0,
+                t <- rep(log(t.points+1), N),                                # if the first timepoint is zero, we add 1 to all timepoints because log(0) is undefined
+                t <- rep(log(t.points), N)
+         )
+  )
   id <- rep(seq_len(N), each=n)                                              # create ID variable
   treat <- as.numeric(as.character(gl(n=2, k=n, length=N*n, labels=c(0,1)))) # create treatment variable
   dat0 <- data.frame(id, treat, t)                                           # combine into data frame
@@ -46,10 +54,10 @@ dat.gen.hand <- function(m=1000, N=72, t.points=c(0,1,2,3,4), var.u0=0, var.u1=.
     
     y.H0 <- u0.H0 + beta2.H0*treat*t + u1.H0*t + e.H0 # data-generating mechanism under H0
     y.H1 <- u0.H1 + beta2.H1*treat*t + u1.H1*t + e.H1 # data-generating mechanism under H1
-    dat.H0 <- data.frame(dat0, y.H0) 
+    dat.H0 <- data.frame(dat0, y.H0)
     dat.H1 <- data.frame(dat0, y.H1)
     
-    models.H0[[i]] <- lmer(yH0 ~ t + t:treat + (t | id), data = dat.H0, control = lmerControl(calc.derivs = F))
+    models.H0[[i]] <- lmer(y.H0 ~ t + t:treat + (t | id), data = dat.H0, control = lmerControl(calc.derivs = F))
     est.H0 <- models.H0[[i]]@beta[3]
     names(est.H0) <- c("t:treat")
     sig.H0 <- vcov(models.H0[[i]])[3,3]
@@ -67,9 +75,7 @@ dat.gen.hand <- function(m=1000, N=72, t.points=c(0,1,2,3,4), var.u0=0, var.u1=.
     BFs.H0[[i]] <- BFu.H0[[i]]/BFu1.H0
     pmp.a.H0[[i]] <- BFu.H0[[i]]/(BFu.H0[[i]] + BFu1.H0)
     
-    
-    
-    models.H1[[i]] <- lmer(yH1 ~ t + t:treat + (t | id), data = dat.H1, control = lmerControl(calc.derivs = F))
+    models.H1[[i]] <- lmer(y.H1 ~ t + t:treat + (t | id), data = dat.H1, control = lmerControl(calc.derivs = F))
     est.H1 <- models.H1[[i]]@beta[3]
     names(est.H1) <- c("t:treat")
     sig.H1 <- vcov(models.H1[[i]])[3,3]
@@ -97,8 +103,9 @@ dat.gen.hand <- function(m=1000, N=72, t.points=c(0,1,2,3,4), var.u0=0, var.u1=.
                        Median_BF_u0 = median(unlist(BFu.H0)),
                        Median_BF_u1 = median(unlist(BFu.H1)),
                        MeanPMP_a0 = mean(unlist(pmp.a.H0)),
-                       MeanPMP_a1 = mean(unlist(pmp.a.H1))
-  )
-  )
+                       MeanPMP_a1 = mean(unlist(pmp.a.H1)),
+                       BFs.H0 = BFs.H0,
+                       BFs.H1 = BFs.H1)
+        )
   
 }

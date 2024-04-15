@@ -1,5 +1,29 @@
 ### RAUDENBUSH TABLES ###   
 
+# After importing RData file
+
+for(i in 1:5){
+  assign(paste0("duration_", i+1), res[[i]])
+  assign(paste0("prop_BF0_d", i+1), rep(NA, 6))
+  assign(paste0("prop_BF1_d", i+1), rep(NA, 6))
+}
+
+for(i in 1:6){
+  prop_BF0_d2[i] <- duration_2[[i+1]][3]
+  prop_BF1_d2[i] <- duration_2[[i+1]][4]
+  
+  prop_BF0_d3[i] <- duration_3[[i+1]][3]
+  prop_BF1_d3[i] <- duration_3[[i+1]][4]
+  
+  prop_BF0_d4[i] <- duration_4[[i+1]][3]
+  prop_BF1_d4[i] <- duration_4[[i+1]][4]
+  
+  prop_BF0_d5[i] <- duration_5[[i+1]][3]
+  prop_BF1_d5[i] <- duration_5[[i+1]][4]
+  
+  prop_BF0_d6[i] <- duration_6[[i+1]][3]
+  prop_BF1_d6[i] <- duration_6[[i+1]][4]
+}
 
 ## Part I: Neff = N
 
@@ -12,47 +36,43 @@ t_m <- vector("list", 7)
 res.tab1 <- vector("list", 7)
 
 for(i in 1:7){
-d[i] <- 5                                   # study duration
+d[i] <- 4                                   # study duration
 ifelse(i==1, f[i] <- 0.5, f[i] <- i-1)      # frequency
 t_m[[i]] <- seq(from=0, to=d[i], by=1/f[i])
 }
 
 
 # increasing frequency while holding duration constant
-for(i in 6:7){
-  start <- Sys.time()
-  res.tab1[[i]] <- dat.gen.vec.hand(m=10000, N=100, t.points = t_m[[i]], var.u1 = .001, Neff = "worst")
-  print(i)
-  print(Sys.time()-start)
+
+set.seed(123)
+for(i in 5:7){
+  suppressMessages({
+    start <- Sys.time()
+    res.tab1[[i]] <- dat.gen.hand(m=10000, N=100, t.points = t_m[[i]], var.u1 = .001, Neff = "worst")
+    print(i)
+    print(Sys.time()-start)
+  })
 }
 
-tab1_d5 <- res.tab1
 
-# save(tab1_d2, tab1_d3, tab1_d4, tab1_d5, tab1_d6, file = "table1.RData")
+
+tab1_d3 <- res.tab1
+
+# save(tab1_d3, file = "tab1_d3.RData")
 
 # plot results
-med_BF0_d5 <- rep(NA, 6)
-med_BF1_d5 <- rep(NA, 6)
-prop_BF0_d5 <- rep(NA, 6)
-prop_BF1_d5 <- rep(NA, 6)
+med_BF0_d3 <- rep(NA, 6)
+med_BF1_d3 <- rep(NA, 6)
+prop_BF0_d3 <- rep(NA, 6)
+prop_BF1_d3 <- rep(NA, 6)
 
 
-for(i in 5:6){
-  med_BF0_d5[i] <- tab1_d5[[i+1]][1]
-  med_BF1_d5[i] <- tab1_d5[[i+1]][2]
-  prop_BF0_d5[i] <- tab1_d5[[i+1]][3]
-  prop_BF1_d5[i] <- tab1_d5[[i+1]][4]
+for(i in 1:6){
+  med_BF0_d3[i] <- tab1_d3[[i+1]][1]
+  med_BF1_d3[i] <- tab1_d3[[i+1]][2]
+  prop_BF0_d3[i] <- tab1_d3[[i+1]][3]
+  prop_BF1_d3[i] <- tab1_d3[[i+1]][4]
 }
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -69,7 +89,7 @@ N <- seq(20, 200, by=20)
 
 for(i in 1:10){
   start <- Sys.time()
-  res.tab2[[i]] <- dat.gen.vec.hand(m=1000, N=N[i], t.points = c(0,1,2), var.u1 = .001)
+  res.tab2[[i]] <- dat.gen.vec.hand(m=1000, N=N[i], t.points = c(0,1,2), var.u1 = .001, Neff = "worst")
   print(i)
   print(Sys.time()-start)
 }

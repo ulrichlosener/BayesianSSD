@@ -21,37 +21,32 @@
 SSD <- function(m=1000, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, eta=.8, log=F) {
   
   library(lme4)       # fit multilevel model
-  library(bain)       # Bayesian estimation
-  library(MASS)
-  
+
   source("fct_data_generation_vec_hand.R") # get the function for data generation
   start <- Sys.time()                      # measure time it takes to execute function
   
   N <- 30            # initial N
   condition <- FALSE # condition initially false  
   i <- 1             # iteration number
-  maxit <- 300
-  
+
   # make empty objects to store results in 
-  medBF.H0 <- vector("list", maxit)
-  medBF.H1 <- vector("list", maxit)
-  medBFc.H0 <- vector("list", maxit)
-  medBFc.H1 <- vector("list", maxit)
-  medBFu.H0 <- vector("list", maxit)
-  medBFu.H1 <- vector("list", maxit)
-  prop.BF.H0 <- vector("list", maxit)
-  prop.BFc.H0 <- vector("list", maxit)
-  prop.BF.H1 <- vector("list", maxit)
-  prop.BFc.H1 <- vector("list", maxit)
-  # PMP.c0 <- vector("list", maxit)
-  # PMP.c1 <- vector("list", maxit)
+  medBF.H0 <- list()
+  medBF.H1 <- list()
+  medBFc.H0 <- list()
+  medBFc.H1 <- list()
+  medBFu.H0 <- list()
+  medBFu.H1 <- list()
+  prop.BF.H0 <- list()
+  prop.BFc.H0 <- list()
+  prop.BF.H1 <- list()
+  prop.BFc.H1 <- list()
   
   while (condition==F) {  # while the power criterion is not met, do the following
 
     N <- N+2 # add one person per group in each iteration (i.e., increase N by 2)
     
     # store results of data generation and BFs in an object 
-    results <- dat.gen.vec.hand(m=m, N=N, t.points=t.points, var.u0=var.u0, var.u1=var.u1, var.e=var.e, eff.size=eff.size, BFthres=BFthres, fraction=1, b0=0, b1=0, cov=0)
+    results <- dat.gen.hand(m=m, N=N, t.points=t.points, var.u0=var.u0, var.u1=var.u1, var.e=var.e, eff.size=eff.size, BFthres=BFthres, fraction=1, b0=0, b1=0, cov=0)
     
     medBF.H0[[i]] <- results$Median_BF0
     prop.BF.H0[[i]] <- results$Prop_BF0

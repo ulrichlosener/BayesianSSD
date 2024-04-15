@@ -4,6 +4,7 @@
 
 library(lme4)
 library(data.table)
+library(dplyr)
 
 var.u0 <- .0333
 var.u1 <- .1
@@ -18,14 +19,22 @@ omega <- .5
 gamma <- 1
 dropout <- T
 
-dat.gen.hand.mis <- function(m=1000, N=72, t.points=c(1,2,3,4,5), var.u0=0, var.u1=.1, var.e=.02, eff.size=.8, BFthres=3, fraction=1, Neff="worst", dropout=F, omega=.5, gamma=1){
-  
+dat.gen.hand.mis <- function(m=1000, N=72, t.points=c(0,1,2,3,4), 
+                             var.u0=0, var.u1=.1, var.e=.02, cov=0, eff.size=.8, 
+                             BFthres=3, fraction=1, Neff="worst", log=F,
+                             dropout=F, omega=.5, gamma=1){
 
     ifelse(Neff=="worst",
            b <- fraction/N,
            b <- fraction/N*n)
     n <- length(t.points)
-    t <- rep(t.points, N)                                                      # time variable storage 
+    ifelse(log==F, 
+           t <- rep(t.points, N), 
+           ifelse(min(t.points)==0,
+                  t <- rep(log(t.points+1), N),                                # if the first timepoint is zero, we add 1 to all timepoints because log(0) is undefined
+                  t <- rep(log(t.points), N)
+                  )
+            )
     t.prop <- t/max(t.points)
     id <- rep(seq_len(N), each=n)                                              # create ID variable
     treat <- as.numeric(as.character(gl(n=2, k=n, length=N*n, labels=c(0,1)))) # create treatment variable
