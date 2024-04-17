@@ -1,8 +1,8 @@
-#===============================================================================
-# Function for data generation and Bayes Factor calculation
-#===============================================================================
+#================================================================================
+# Function for data generation and Bayes Factor calculation for a single data set
+#================================================================================
 
-# The function uses the following arguments:
+# The function "getbf" uses the following arguments:
 # N = the total sample size (number of subjects)
 # t.points = position of the measurement occasions in time
 # var.u0 = intercept variance
@@ -16,7 +16,7 @@
 # where n = number of measurement occasions
 # log.grow = indicates whether to use logarithmic (TRUE) or linear growth (FALSE)
 
-# Note that this "getpower" requires loading the function "getbf" in the global environment
+# Note that this function is required by the function "getpower".
 
 
 getbf <- function(N, t.points, var.u0, var.u1, cov, var.e, eff.size, BFthres, fraction, Neff, log.grow){

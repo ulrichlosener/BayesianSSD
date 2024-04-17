@@ -2,7 +2,7 @@
 # Function for power determination for a given sample size
 #===============================================================================
 
-# The function uses the following arguments:
+# The function "getpower" uses the following arguments:
 # m = number of datasets created under each hypothesis
 # N = the total sample size (number of subjects)
 # t.points = position of the measurement occasions in time
@@ -17,7 +17,7 @@
 # where n = number of measurement occasions
 # log.grow = indicates whether to use logarithmic (TRUE) or linear growth (FALSE)
 
-# Note that this "getpower" requires loading the function "getbf" in the global environment
+# Note that this function requires loading the function "getbf" in the global environment.
 
 getpower <- function(m=1000, N=72, t.points=c(0,1,2,3,4), 
                          var.u0=0.0333, var.u1=.1, var.e=.0262, cov=0, eff.size=.8, 
