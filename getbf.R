@@ -10,7 +10,6 @@
 # cov = covariance between intercept and slope variance
 # var.e = error variance
 # eff.size = effect size defined as beta/sqrt(var.u1), where beta is the coefficient of interaction
-# Bfthres = threshold a BF needs to exceed to be considered substantial
 # fraction = fraction of information used to specify prior, b = fraction/N
 # Neff = if "worst": effective sample size = N, if "best": effective sample size = N*n, 
 # where n = number of measurement occasions
@@ -19,7 +18,7 @@
 # Note that this function is required by the function "getpower".
 
 
-getbf <- function(N, t.points, var.u0, var.u1, cov, var.e, eff.size, BFthres, fraction, Neff, log.grow){
+getbf <- function(N, t.points, var.u0, var.u1, cov, var.e, eff.size, fraction, Neff, log.grow){
   
   n <- length(t.points)  # number of measurement occasions
   ifelse(Neff=="worst",  # if Neff="worst", then Neff=N, otherwise Neff=N*n
@@ -49,7 +48,7 @@ getbf <- function(N, t.points, var.u0, var.u1, cov, var.e, eff.size, BFthres, fr
   dat.H0 <- data.frame(dat0, y.H0)  # add y under H0 to data frame
   dat.H1 <- data.frame(dat0, y.H1)  # add y under H1 to data frame
   
-  models.H0 <- lmer(y.H0 ~ t + t:treat + (t | id), data = dat.H0, control = lmerControl(calc.derivs = F))  # fit MLM model under H0
+  models.H0 <- lme4::lmer(y.H0 ~ t + t:treat + (t | id), data = dat.H0, control = lme4::lmerControl(calc.derivs = F))  # fit MLM model under H0
   est.H0 <- models.H0@beta[3]  # extract estimate for coefficient of interaction under H0
   sig.H0 <- vcov(models.H0)[3,3]  # extract residual variance under H0  
   
@@ -66,7 +65,7 @@ getbf <- function(N, t.points, var.u0, var.u1, cov, var.e, eff.size, BFthres, fr
   BFs.H0 <- BFu.H0/BFu1.H0
   pmp.a.H0 <- BFu.H0/(BFu.H0 + BFu1.H0)
   
-  models.H1 <- lmer(y.H1 ~ t + t:treat + (t | id), data = dat.H1, control = lmerControl(calc.derivs = F))  # fit MLM model under H1
+  models.H1 <- lme4::lmer(y.H1 ~ t + t:treat + (t | id), data = dat.H1, control = lme4::lmerControl(calc.derivs = F))  # fit MLM model under H1
   est.H1 <- models.H1@beta[3]  # extract estimate for coefficient of interaction under H1
   sig.H1 <- vcov(models.H1)[3,3]  # extract residual variance under H0
   
@@ -83,7 +82,7 @@ getbf <- function(N, t.points, var.u0, var.u1, cov, var.e, eff.size, BFthres, fr
   BFs.H1 <- BFu.H1/BFu0.H1
   pmp.a.H1 <- BFu.H1/(BFu.H1 + BFu0.H1)
   
-  # return power for H0 and H1
+  # return BF01 and BF10
   return(output = list(BF01 = BFs.H0,
                        BF10 = BFs.H1))
 }

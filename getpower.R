@@ -29,12 +29,16 @@ getpower <- function(m=1000, N=72, t.points=c(0,1,2,3,4),
   suppressMessages({
   # for every m, execute function to simulate data and calculate BFs
   bfs <- lapply(Ns, getbf, t.points=t.points, var.u0=var.u0, var.u1=var.u1, cov=cov, var.e=var.e, 
-         eff.size=eff.size, fraction=fraction, BFthres=BFthres, Neff=Neff, log.grow=log.grow)
+         eff.size=eff.size, fraction=fraction, Neff=Neff, log.grow=log.grow)
   })
   bf0 <- sapply(bfs, "[[", 1) # extract all BF01
   bf1 <- sapply(bfs, "[[", 2) # extract all BF10
   
   # return list with proportion of BFs>threshold, aka power
-  return(list(power.H0 <- length(bf0[bf0>BFthres])/m,
-              power.H1 <- length(bf1[bf1>BFthres])/m))
+  return(list(power.H0 = length(bf0[bf0>BFthres])/m,
+              power.H1 = length(bf1[bf1>BFthres])/m))
 }
+
+
+
+
