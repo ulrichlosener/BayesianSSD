@@ -3,11 +3,11 @@
 ## File description:
  - **BayeSSD.R** performs Bayesian SSD for MLM. This requires the functions `getbf()` and `getpower()`.
  - **getbf.R** simulates data and calculates the Bayes Factor. This is needed for running `BayeSSD()`.
- - **getpower.R** determines the power for a given sample size. This requires the function `getbf()` and is needed for running `BayeSSD()`. This function can also be used to determine the power for a fixed N.
+ - **getpower.R** determines the power for a given sample size. This requires the function `getbf()` and is needed for running `BayeSSD()`.
  - **simulation.R** executes the simulations necessary to produce the tables 2 and 3 in the paper.
  - **Old_functions** is a folder containing old versions of the functions above and others.
 
-## Function dependencies:
+## Dependencies:
 `BayeSSD()` -requires-> `getpower()`-requires-> `getbf()` -requires-> `lme4`, `MASS`
                         
 ## Project description:
