@@ -1,7 +1,7 @@
 # Bayesian Sample Size Determination for Multilevel Models with Linear or Log-linear Growth
 
 ## File description:
- - **BayeSSD.R** performs Bayesian SSD for MLM. This requires the functions getbf()" and `getpower()`.
+ - **BayeSSD.R** performs Bayesian SSD for MLM. This requires the functions `getbf()` and `getpower()`.
  - **getbf.R** simulates data and calculates the Bayes Factor. This is needed for running `BayeSSD()`.
  - **getpower.R** determines the power for a given sample size. This requires the function `getbf()` and is needed for running `BayeSSD()`. This function can also be used to determine the power for a fixed N.
  - **simulation.R** executes the simulations necessary to produce the tables 2 and 3 in the paper.
