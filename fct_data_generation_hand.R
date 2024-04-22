@@ -7,6 +7,7 @@
 # m <- 100
 # eff.size <- .8
 # fraction <- 1
+# cov <- 0
 
 dat.gen.hand <- function(m=1000, N=72, t.points=c(0,1,2,3,4), 
                          var.u0=0.0333, var.u1=.1, var.e=.0262, cov=0, eff.size=.8, 

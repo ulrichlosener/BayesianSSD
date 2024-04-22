@@ -7,7 +7,6 @@ PD <- function(m=1000, N=72, t.points=c(0,1,2,3,4),
                BFthres=3, fraction=1, Neff="worst", log=F,
                dropout=F, omega=.5, gamma=1){
   
-  if(eta<0 | eta>1) {stop("'eta' (the desired power level) must be between 0 and 1")}
   if(m%%1!=0 | m<1) {stop("'m' must be a positive integer")}
   if(is.logical(log)==F) {stop("'log' must be either TRUE or FALSE")}
   if(is.logical(sensitivity)==F) {stop("'sensitivity' must be either TRUE or FALSE")}

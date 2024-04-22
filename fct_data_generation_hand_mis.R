@@ -21,14 +21,14 @@ dropout <- T
 
 dat.gen.hand.mis <- function(m=1000, N=72, t.points=c(0,1,2,3,4), 
                              var.u0=0, var.u1=.1, var.e=.02, cov=0, eff.size=.8, 
-                             BFthres=3, fraction=1, Neff="worst", log=F,
+                             BFthres=3, fraction=1, Neff="worst", log.grow=F,
                              dropout=F, omega=.5, gamma=1){
 
     ifelse(Neff=="worst",
            b <- fraction/N,
            b <- fraction/N*n)
     n <- length(t.points)
-    ifelse(log==F, 
+    ifelse(log.grow==F, 
            t <- rep(t.points, N), 
            ifelse(min(t.points)==0,
                   t <- rep(log(t.points+1), N),                                # if the first timepoint is zero, we add 1 to all timepoints because log(0) is undefined
