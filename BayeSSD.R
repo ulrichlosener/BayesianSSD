@@ -24,7 +24,7 @@
 BayeSSD <- function(eta=.8, m=1000, log=F, t.points=c(0,1,2,3,4), 
                  var.u0=0.0333, var.u1=.1, cov=0, var.e=.02, 
                  eff.size=.8, BFthres=3, Neff="worst",  fraction=1,
-                 sensitivity=F) {
+                 sensitivity=F, seed=NULL) {
   
   # error messages in case of incorrect input values
   if(eta<0 | eta>1) {stop("'eta' (the desired power level) must be between 0 and 1")}
@@ -36,11 +36,13 @@ BayeSSD <- function(eta=.8, m=1000, log=F, t.points=c(0,1,2,3,4),
   if(BFthres<0) {stop("'BFthres' must be positive")}
   if(fraction%%1!=0 | fraction<1) {stop("'fraction' must be a positive integer, b=fraction/N")}
   if(m<1000) {warning("Results with less than 1000 generated datasets per iteration can be unreliable and result in power < eta.")}
-  if(m>4999) {print("Depending on your machine and available memory, it might take some time to perform SSD with m > 5000. Enjoy a lunch or a coffee break while waitning for the results!")}
+  if(m>4999) {print("Depending on your machine and available memory, it might take some time to run this function with m > 5000. Enjoy a lunch or a coffee break while waiting for the results!")}
   
-  
-  source("fct_data_generation_hand.R")  # call the function for data generation
+  source("getbf.R")  # call the function for data generation
+  source("getpower.R")  # call the function for power analysis
   start <- Sys.time()  # measure time it takes to execute function
+  
+  if(!is.null(seed)) {set.seed(seed)}  # set user-specified seed for reproducibility
   
   prop.BF.H0 <- list()  # empty objects to store results
   prop.BF.H1 <- list()
