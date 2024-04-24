@@ -21,9 +21,11 @@
 
 getpower <- function(m=1000, N=72, t.points=c(0,1,2,3,4), 
                          var.u0=0.0333, var.u1=.1, var.e=.0262, cov=0, eff.size=.8, 
-                         BFthres=3, fraction=1, Neff="worst", log.grow=F){
+                         BFthres=3, fraction=1, Neff="worst", log.grow=F, seed=NULL){
   
   source("getbf.R")  # call function to simulate data and calculate BFs
+  
+  if(!is.null(seed)) {set.seed(seed)}  # set user-specified seed for reproducibility
   
   Ns <- rep(N, m)  # object to use lapply on with first argument for the function (N)
   suppressMessages({
