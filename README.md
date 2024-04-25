@@ -9,6 +9,7 @@
 
 ## Dependencies:
 `BayeSSD()` -requires-> `getpower()`-requires-> `getbf()` -requires-> `lme4`, `MASS`  
+  
 To run the SSD function, you need to have both functions `getpower()` and `getbf()` loaded to your global environment. Furhtermore, the packages `lme4`and `MASS` need to be installed on your machine.
                         
 ## Project description:
