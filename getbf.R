@@ -2,6 +2,11 @@
 # Function for data generation and Bayes Factor calculation for a single data set
 #================================================================================
 
+# Hypotheses to be tested:
+# H0: beta2 = 0
+# H1: beta2 > 0
+# where beta2 is the coefficient of interaction of time and treatment condition (treatment effect)
+
 # The function "getbf" uses the following arguments:
 # N = the total sample size (number of subjects)
 # t.points = position of the measurement occasions in time
@@ -17,6 +22,7 @@
 
 # Note that this function is required by the function "getpower".
 
+#-------------------------------------------------------------------------------
 
 getbf <- function(N, t.points, var.u0, var.u1, cov, var.e, eff.size, fraction, Neff, log.grow){
   
@@ -86,3 +92,5 @@ getbf <- function(N, t.points, var.u0, var.u1, cov, var.e, eff.size, fraction, N
   return(output = list(BF01 = BFs.H0,
                        BF10 = BFs.H1))
 }
+
+#-------------------------------------------------------------------------------
