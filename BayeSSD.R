@@ -2,6 +2,11 @@
 # Function for Sample Size Determination for Longitudinal Trials - Binary Search
 #===============================================================================
 
+# Hypotheses to be tested:
+# H0: beta2 = 0
+# H1: beta2 > 0
+# where beta2 is the coefficient of interaction of time and treatment condition (treatment effect)
+
 # The function "BayeSSD" uses the following arguments:
 # eta = the desired power level for each hypothesis
 # m = number of datasets created under each hypothesis
@@ -20,7 +25,9 @@
 
 # Note 1: this function requires loading the function "getpower" in the global environment.
 # Note 2: the packages "MASS" and "lme4" need to be installed (not attached) in order to run this function
- 
+
+#-------------------------------------------------------------------------------
+
 BayeSSD <- function(eta=.8, m=1000, log=F, t.points=c(0,1,2,3,4), 
                  var.u0=0.0333, var.u1=.1, cov=0, var.e=.02, 
                  eff.size=.8, BFthres=3, Neff="worst",  fraction=1,
@@ -117,7 +124,8 @@ BayeSSD <- function(eta=.8, m=1000, log=F, t.points=c(0,1,2,3,4),
           
           cat("Iteration number", j, "\n", "Power evaluation for a total sample size of N =", unlist(N[j]), "with b =", i, "\n") 
           
-          if(N[j]==Nmin+1 | N[j]==Nmin+2) {condition=TRUE}
+          # if(N[j]==Nmin+1 | N[j]==Nmin+2) {condition=TRUE}
+          if(N[j]==Nmin+1) {condition=TRUE}
           
           j <- j+1
         }
@@ -133,3 +141,5 @@ BayeSSD <- function(eta=.8, m=1000, log=F, t.points=c(0,1,2,3,4),
   })
 }
 # end of function --------------------------------------------------------------
+
+
