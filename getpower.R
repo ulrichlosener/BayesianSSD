@@ -2,6 +2,11 @@
 # Function for power determination for a given sample size
 #===============================================================================
 
+# Hypotheses to be tested:
+# H0: beta2 = 0
+# H1: beta2 > 0
+# where beta2 is the coefficient of interaction of time and treatment condition (treatment effect)
+
 # The function "getpower" uses the following arguments:
 # m = number of datasets created under each hypothesis
 # N = the total sample size (number of subjects)
@@ -18,6 +23,8 @@
 # log.grow = indicates whether to use logarithmic (TRUE) or linear growth (FALSE)
 
 # Note that this function requires loading the function "getbf" in the global environment.
+
+#-------------------------------------------------------------------------------
 
 getpower <- function(m=1000, N=72, t.points=c(0,1,2,3,4), 
                          var.u0=0.0333, var.u1=.1, var.e=.0262, cov=0, eff.size=.8, 
@@ -41,6 +48,4 @@ getpower <- function(m=1000, N=72, t.points=c(0,1,2,3,4),
               power.H1 = length(bf1[bf1>BFthres])/m))
 }
 
-
-
-
+#-------------------------------------------------------------------------------
