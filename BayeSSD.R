@@ -37,7 +37,7 @@ BayeSSD <- function(eta=.8, m=1000, log.grow=F, t.points=c(0,1,2,3,4),
   # error and warning messages in case of incorrect input
   if(eta<0 | eta>1) {stop("'eta' (the desired power level) must be between 0 and 1")}
   if(m%%1!=0 | m<1) {stop("'m' must be a positive integer")}
-  if(is.logical(log)==F) {stop("'log' must be either TRUE or FALSE")}
+  if(!is.logical(log.grow)) {stop("'log.grow' must be either TRUE or FALSE")}
   if(is.logical(sensitivity)==F) {stop("'sensitivity' must be either TRUE or FALSE")}
   if(any(t.points<0)) {stop("all time points must be positive")}
   if(var.u0<0 | var.u1<0 | cov<0 | var.e<0) {stop("all variance components must be positive")}
@@ -148,7 +148,7 @@ BayeSSD <- function(eta=.8, m=1000, log.grow=F, t.points=c(0,1,2,3,4),
         while(condition==F){
           
           N[j] <- round((Nmin + Nmax)/2, digits = 0)
-          results <- getpower(m=m, N=unlist(N[j]), fraction=i, log=log, t.points=t.points, 
+          results <- getpower(m=m, N=unlist(N[j]), fraction=i, log.grow=log.grow, t.points=t.points, 
                               var.u0=var.u0, var.u1=var.u1, cov=cov, var.e=var.e, 
                               eff.size=eff.size, BFthres=BFthres, Neff=Neff, hyp=hyp)
           
