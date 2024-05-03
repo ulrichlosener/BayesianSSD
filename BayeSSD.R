@@ -22,18 +22,19 @@
 # where n = number of measurement occasions
 # log.grow = indicates whether to use logarithmic (TRUE) or linear growth (FALSE)
 # sensitivity = should a sensitivity analysis be carried out for different values (1,2,3) for "fraction"?
+# hyp = for which hypotheses should the SSD be carried out ("H0", "H1", "both" or "h0", "h1", "b")
 
 # Note 1: this function requires loading the function "getpower" in the global environment.
 # Note 2: the packages "MASS" and "lme4" need to be installed (not attached) in order to run this function
 
 #-------------------------------------------------------------------------------
 
-BayeSSD <- function(eta=.8, m=1000, log=F, t.points=c(0,1,2,3,4), 
+BayeSSD <- function(eta=.8, m=1000, log.grow=F, t.points=c(0,1,2,3,4), 
                  var.u0=0.0333, var.u1=.1, cov=0, var.e=.02, 
                  eff.size=.8, BFthres=3, Neff="worst",  fraction=1,
-                 sensitivity=F, seed=NULL) {
+                 sensitivity=F, seed=NULL, hyp = "both") {
   
-  # error messages in case of incorrect input values
+  # error and warning messages in case of incorrect input
   if(eta<0 | eta>1) {stop("'eta' (the desired power level) must be between 0 and 1")}
   if(m%%1!=0 | m<1) {stop("'m' must be a positive integer")}
   if(is.logical(log)==F) {stop("'log' must be either TRUE or FALSE")}
@@ -44,11 +45,13 @@ BayeSSD <- function(eta=.8, m=1000, log=F, t.points=c(0,1,2,3,4),
   if(fraction%%1!=0 | fraction<1) {stop("'fraction' must be a positive integer, b=fraction/N")}
   if(m<1000) {warning("Results with less than 1000 generated datasets per iteration can be unreliable and result in power < eta.")}
   if(m>4999) {print("Depending on your machine and available memory, it might take some time to run this function with m > 5000. Enjoy a lunch or a coffee break while waiting for the results!")}
+  if(hyp != "both" & hyp != "h1" & hyp != "h0" & hyp != "b" & hyp != "H0" & hyp != "H1") {
+    stop("value for 'hyp' must be either 'both'/'b', 'h0'/'H0', or 'h1'/'H1'" )
+  }
   
+  start <- Sys.time()  # measure time it takes to execute function
   source("getbf.R")  # call the function for data generation
   source("getpower.R")  # call the function for power analysis
-  start <- Sys.time()  # measure time it takes to execute function
-  
   if(!is.null(seed)) {set.seed(seed)}  # set user-specified seed for reproducibility
   
   prop.BF.H0 <- list()  # empty objects to store results
@@ -69,32 +72,64 @@ BayeSSD <- function(eta=.8, m=1000, log=F, t.points=c(0,1,2,3,4),
         
         N[j] <- round((Nmin + Nmax)/2, digits = 0)  # current N is the mid point between Nmin and Nmax
         # generate data and store BFs
-        results <- getpower(m=m, N=unlist(N[j]), log=log, fraction=fraction, 
+        results <- getpower(m=m, N=unlist(N[j]), log.grow=log.grow, fraction=fraction, 
                             t.points=t.points, var.u0=var.u0, var.u1=var.u1, 
-                            cov=cov, var.e=var.e, eff.size=eff.size, BFthres=BFthres, Neff=Neff)
-        prop.BF.H0[j] <- results$power.H0
-        prop.BF.H1[j] <- results$power.H1
+                            cov=cov, var.e=var.e, eff.size=eff.size, 
+                            BFthres=BFthres, Neff=Neff, hyp=hyp)
         
-        # if power>eta in both scenarios, Nmax becomes the current N; if power<eta in both scenarios, Nmin becomes the current N
-        ifelse(prop.BF.H0[j]>eta && prop.BF.H1[j]>eta, 
-               Nmax <- unlist(N[j]),
-               Nmin <- unlist(N[j])
-        )
+        if(hyp == "both" | hyp == "b"){
+          prop.BF.H0[j] <- results$power.H0
+          prop.BF.H1[j] <- results$power.H1
+          
+          # if power>eta in both scenarios, Nmax becomes the current N; if power<eta in both scenarios, Nmin becomes the current N
+          ifelse(prop.BF.H0[j]>=eta && prop.BF.H1[j]>=eta, 
+                 Nmax <- unlist(N[j]),
+                 Nmin <- unlist(N[j])
+          )
+        } else if(hyp == "h0" | hyp == "H0"){
+          prop.BF.H0[j] <- results$power.H0
+          
+          # if power>eta under H0, Nmax becomes the current N; if power<eta under H0, Nmin becomes the current N
+          ifelse(prop.BF.H0[j]>=eta, 
+                 Nmax <- unlist(N[j]),
+                 Nmin <- unlist(N[j])
+          )
+        } else if(hyp == "h1" | hyp == "H1"){
+          prop.BF.H1[j] <- results$power.H1
+          
+          # if power>eta under H1, Nmax becomes the current N; if power<eta under H1, Nmin becomes the current N
+          ifelse(prop.BF.H1[j]>=eta, 
+                 Nmax <- unlist(N[j]),
+                 Nmin <- unlist(N[j])
+          )
+        }
         
         # print text with info about iteration number and current N
         cat("Iteration number", j, "\n", "Power evaluation for a total sample size of N =", unlist(N[j]), "\n")
         
-        # if N increases by only 1 or 2, condition is met and the algorithm stops
-        if(N[j]==Nmin+1 | N[j]==Nmin+2 | Nmax==Nmin) {condition=TRUE}
+        # if N increases by only 1, condition is met and the algorithm stops
+        if(N[j]==Nmin+1 | Nmax==Nmin) {condition=TRUE}
         
         # increase iteration by 1
         j <- j+1
       }
       
       # print results
-      cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N is N =", unlist(N[j-1]), "\n", 
-          "Power for H0:", "P(BF01 >", BFthres, "| H0) =", unlist(prop.BF.H0[j-1]), "\n",
-          "Power for H1:", "P(BF10 >", BFthres, "| H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
+      if(hyp == "both" | hyp == "b"){
+        cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N is N =", unlist(N[j-1]), "\n", 
+            "Power for H0:", "P(BF01 >", BFthres, "| H0) =", unlist(prop.BF.H0[j-1]), "\n",
+            "Power for H1:", "P(BF10 >", BFthres, "| H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
+        
+      } else if(hyp == "h0" | hyp == "H0"){
+        
+        cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N is N =", unlist(N[j-1]), "\n", 
+            "Power for H0:", "P(BF01 >", BFthres, "| H0) =", unlist(prop.BF.H0[j-1]), "\n", "\n")
+        
+      } else if(hyp == "h1" | hyp == "H1"){
+        
+        cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N is N =", unlist(N[j-1]), "\n", 
+            "Power for H1:", "P(BF10 >", BFthres, "| H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
+      }
       
       # print total runtime
       print(Sys.time() - start)
@@ -114,32 +149,63 @@ BayeSSD <- function(eta=.8, m=1000, log=F, t.points=c(0,1,2,3,4),
           
           N[j] <- round((Nmin + Nmax)/2, digits = 0)
           results <- getpower(m=m, N=unlist(N[j]), fraction=i, log=log, t.points=t.points, 
-                              var.u0=var.u0, var.u1=var.u1, cov=cov, var.e=var.e, eff.size=eff.size, BFthres=BFthres, Neff=Neff)
-          prop.BF.H0[j] <- results$power.H0
-          prop.BF.H1[j] <- results$power.H1
+                              var.u0=var.u0, var.u1=var.u1, cov=cov, var.e=var.e, 
+                              eff.size=eff.size, BFthres=BFthres, Neff=Neff, hyp=hyp)
           
-          ifelse(prop.BF.H0[j]>eta && prop.BF.H1[j]>eta, 
-                 Nmax <- unlist(N[j]),
-                 Nmin <- unlist(N[j]))
+          if(hyp == "both" | hyp == "b"){
+            prop.BF.H0[j] <- results$power.H0
+            prop.BF.H1[j] <- results$power.H1
+            
+            # if power>eta in both scenarios, Nmax becomes the current N; if power<eta in both scenarios, Nmin becomes the current N
+            ifelse(prop.BF.H0[j]>=eta && prop.BF.H1[j]>=eta, 
+                   Nmax <- unlist(N[j]),
+                   Nmin <- unlist(N[j])
+            )
+          } else if(hyp == "h0" | hyp == "H0"){
+            prop.BF.H0[j] <- results$power.H0
+            
+            # if power>eta in both scenarios, Nmax becomes the current N; if power<eta in both scenarios, Nmin becomes the current N
+            ifelse(prop.BF.H0[j]>=eta, 
+                   Nmax <- unlist(N[j]),
+                   Nmin <- unlist(N[j])
+            )
+          } else if(hyp == "h1" | hyp == "H1"){
+            prop.BF.H1[j] <- results$power.H1
+            
+            # if power>eta in both scenarios, Nmax becomes the current N; if power<eta in both scenarios, Nmin becomes the current N
+            ifelse(prop.BF.H1[j]>=eta, 
+                   Nmax <- unlist(N[j]),
+                   Nmin <- unlist(N[j])
+            )
+          }
           
           cat("Iteration number", j, "\n", "Power evaluation for a total sample size of N =", unlist(N[j]), "with b =", i, "\n") 
           
-          # if(N[j]==Nmin+1 | N[j]==Nmin+2) {condition=TRUE}
-          if(N[j]==Nmin+1) {condition=TRUE}
+          if(N[j]==Nmin+1 | Nmax==Nmin) {condition=TRUE}
           
           j <- j+1
         }
         
-        cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", i, "is N =", unlist(N[j-1]), "\n", 
-            "Power for H0:", "P(BF01 >", BFthres, "|H0) =", unlist(prop.BF.H0[j-1]), "\n",
-            "Power for H1:", "P(BF10 >", BFthres, "|H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
-        
+        # print results
+        if(hyp == "both" | hyp == "b"){
+          cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", i, "/ N is N =", unlist(N[j-1]), "\n", 
+              "Power for H0:", "P(BF01 >", BFthres, "| H0) =", unlist(prop.BF.H0[j-1]), "\n",
+              "Power for H1:", "P(BF10 >", BFthres, "| H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
+          
+        } else if(hyp == "h0" | hyp == "H0"){
+          
+          cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", i, "/ N is N =", unlist(N[j-1]), "\n", 
+              "Power for H0:", "P(BF01 >", BFthres, "| H0) =", unlist(prop.BF.H0[j-1]), "\n", "\n")
+          
+        } else if(hyp == "h1" | hyp == "H1"){
+          
+          cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", i, "/ N is N =", unlist(N[j-1]), "\n", 
+              "Power for H1:", "P(BF10 >", BFthres, "| H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
+        }
       }
       print(Sys.time() - start)
     }
-    
   })
 }
-# end of function --------------------------------------------------------------
 
-
+# END OF FUNCTION --------------------------------------------------------------
