@@ -101,7 +101,11 @@ getbf <- function(N, t.points, var.u0, var.u1, cov, var.e, eff.size, fraction, N
     
     # return BF01 and BF10
     return(output = list(BF01 = BFs.H0,
-                         BF10 = BFs.H1))
+                         BF10 = BFs.H1,
+                         BF0u = BFu.H0,
+                         BF1u = BFu.H1,
+                         BF0c = BFc.H0,
+                         BF1c = BFc.H1))
     
   } else if (hyp == "h0" | hyp == "H0"){  # calculate BF for H0 only -----------
     
@@ -124,7 +128,9 @@ getbf <- function(N, t.points, var.u0, var.u1, cov, var.e, eff.size, fraction, N
     pmp.a.H0 <- BFu.H0/(BFu.H0 + BFu1.H0)    
     
     # return BF01
-    return(BF01 = BFs.H0)
+    return(list(BF01 = BFs.H0,
+                BF0u = BFu.H0,
+                BF0c = BFc.H0))
     
   } else if (hyp == "h1" | hyp == "H1"){  # calculate BF for H1 only -----------
     
@@ -147,7 +153,9 @@ getbf <- function(N, t.points, var.u0, var.u1, cov, var.e, eff.size, fraction, N
     pmp.a.H1 <- BFu.H1/(BFu.H1 + BFu0.H1)
     
     # return BF01 and BF10
-    return(BF10 = BFs.H1)
+    return(list(BF10 = BFs.H1,
+                BF1u = BFu.H1,
+                BF1c = BFc.H1))
   }
 
 }

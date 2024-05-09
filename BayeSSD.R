@@ -30,27 +30,32 @@
 #-------------------------------------------------------------------------------
 
 BayeSSD <- function(eta=.8, m=1000, log.grow=F, t.points=c(0,1,2,3,4), 
-                 var.u0=0.0333, var.u1=.1, cov=0, var.e=.02, 
-                 eff.size=.8, BFthres=3, Neff="worst",  fraction=1,
-                 sensitivity=F, seed=NULL, hyp = "both") {
+                    var.u0=0.0333, var.u1=.1, cov=0, var.e=.02, 
+                    eff.size=.8, BFthres=3, Neff="worst",  fraction=1,
+                    sensitivity=F, seed=NULL, hyp = "both", test="alt") {
   
   # error and warning messages in case of incorrect input
-  if(eta<0 | eta>1) {stop("'eta' (the desired power level) must be between 0 and 1")}
-  if(m%%1!=0 | m<1) {stop("'m' must be a positive integer")}
-  if(!is.logical(log.grow)) {stop("'log.grow' must be either TRUE or FALSE")}
-  if(is.logical(sensitivity)==F) {stop("'sensitivity' must be either TRUE or FALSE")}
-  if(any(t.points<0)) {stop("all time points must be positive")}
-  if(var.u0<0 | var.u1<0 | cov<0 | var.e<0) {stop("all variance components must be positive")}
-  if(BFthres<0) {stop("'BFthres' must be positive")}
-  if(fraction%%1!=0 | fraction<1) {stop("'fraction' must be a positive integer, b=fraction/N")}
+  if(eta<0 | eta>1) {stop("'eta' (the desired power level) must be between 0 and 1.")}
+  if(m%%1!=0 | m<1) {stop("'m' must be a positive integer.")}
+  if(!is.logical(log.grow)) {stop("'log.grow' must be either TRUE or FALSE.")}
+  if(is.logical(sensitivity)==F) {stop("'sensitivity' must be either TRUE or FALSE.")}
+  if(any(t.points<0)) {stop("all time points must be positive.")}
+  if(var.u0<0 | var.u1<0 | cov<0 | var.e<0) {stop("all variance components must be positive.")}
+  if(BFthres<0) {stop("'BFthres' must be positive.")}
+  if(fraction%%1!=0 | fraction<1) {stop("'fraction' must be a positive integer, b=fraction/N.")}
   if(m<1000) {warning("Results with less than 1000 generated datasets per iteration can be unreliable and result in power < eta.")}
   if(m>4999) {print("Depending on your machine and available memory, it might take some time to run this function with m > 5000. Enjoy a lunch or a coffee break while waiting for the results!")}
   if(hyp != "both" & hyp != "h1" & hyp != "h0" & hyp != "b" & hyp != "H0" & hyp != "H1") {
-    stop("value for 'hyp' must be either 'both'/'b', 'h0'/'H0', or 'h1'/'H1'" )
+    stop("Value for 'hyp' must be either 'both'/'b', 'h0'/'H0', or 'h1'/'H1'." )
   }
+  if(test != "alt" & test != "hu" & test != "Hu" & test != "hc" & test != "Hc") {
+    stop("Value for 'test' must be either 'alt', 'hu'/'Hu', or 'hc'/'Hc'." )
+  }
+  if((test=="hu" | test=="Hu") & BFthres>2 & (hyp!="h0") | hyp!="H0") 
+    {stop("The value for 'BFthres' is too high in this configuration, BF1u cannot exceed 2.")}
   
-  start <- Sys.time()  # measure time it takes to execute function
-  source("getbf.R")  # call the function for data generation
+  start <- Sys.time()   # measure time it takes to execute function
+  source("getbf.R")     # call the function for data generation
   source("getpower.R")  # call the function for power analysis
   if(!is.null(seed)) {set.seed(seed)}  # set user-specified seed for reproducibility
   
@@ -58,12 +63,12 @@ BayeSSD <- function(eta=.8, m=1000, log.grow=F, t.points=c(0,1,2,3,4),
   prop.BF.H1 <- list()
   N <- list()
   
-  Nmin <- 30  # (initial) minimal sample size 
-  Nmax <- 1000  # (initial) maximum sample size
-  condition <- FALSE  # condition initially FALSE until power criterion is reached
-  j <- 1  # iteration counter
+  Nmin <- 30            # (initial) minimal sample size 
+  Nmax <- 1000          # (initial) maximum sample size
+  condition <- FALSE    # condition initially FALSE until power criterion is reached
+  j <- 1                # iteration counter
   
-  suppressMessages({  # suppress warning messages about singular fit of some MLM models
+  suppressMessages({    # suppress warning messages about singular fit of some MLM models
     
     # Without sensitivity analysis ---------------------------------------------
     if(sensitivity==F){ 
@@ -75,7 +80,7 @@ BayeSSD <- function(eta=.8, m=1000, log.grow=F, t.points=c(0,1,2,3,4),
         results <- getpower(m=m, N=unlist(N[j]), log.grow=log.grow, fraction=fraction, 
                             t.points=t.points, var.u0=var.u0, var.u1=var.u1, 
                             cov=cov, var.e=var.e, eff.size=eff.size, 
-                            BFthres=BFthres, Neff=Neff, hyp=hyp)
+                            BFthres=BFthres, Neff=Neff, hyp=hyp, test=test)
         
         if(hyp == "both" | hyp == "b"){
           prop.BF.H0[j] <- results$power.H0
@@ -114,21 +119,42 @@ BayeSSD <- function(eta=.8, m=1000, log.grow=F, t.points=c(0,1,2,3,4),
         j <- j+1
       }
       
-      # print results
+      # print results and return power levels
       if(hyp == "both" | hyp == "b"){
         cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N is N =", unlist(N[j-1]), "\n", 
             "Power for H0:", "P(BF01 >", BFthres, "| H0) =", unlist(prop.BF.H0[j-1]), "\n",
             "Power for H1:", "P(BF10 >", BFthres, "| H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
         
+        # return if function is assigned to an object but not print
+        return(invisible(list(Recommended_N = unlist(N[j-1]),
+                         Power_H0 = unlist(prop.BF.H0[j-1]),
+                         Power_H1 = unlist(prop.BF.H1[j-1]),
+                         b_fraction = paste(fraction, "/ N")
+                         )
+              )
+        )
       } else if(hyp == "h0" | hyp == "H0"){
         
         cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N is N =", unlist(N[j-1]), "\n", 
             "Power for H0:", "P(BF01 >", BFthres, "| H0) =", unlist(prop.BF.H0[j-1]), "\n", "\n")
         
+        return(invisible(list(Recommended_N = unlist(N[j-1]),
+                        Power_H0 = unlist(prop.BF.H0[j-1]),
+                        b_fraction = paste(fraction, "/ N")
+                        )
+               )
+        )
       } else if(hyp == "h1" | hyp == "H1"){
         
         cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N is N =", unlist(N[j-1]), "\n", 
             "Power for H1:", "P(BF10 >", BFthres, "| H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
+      
+        return(invisible(list(Recommended_N = unlist(N[j-1]),
+                         Power_H1 = unlist(prop.BF.H1[j-1]),
+                         b_fraction = paste(fraction, "/ N")
+                         )
+               )
+        )
       }
       
       # print total runtime
@@ -164,7 +190,7 @@ BayeSSD <- function(eta=.8, m=1000, log.grow=F, t.points=c(0,1,2,3,4),
           } else if(hyp == "h0" | hyp == "H0"){
             prop.BF.H0[j] <- results$power.H0
             
-            # if power>eta in both scenarios, Nmax becomes the current N; if power<eta in both scenarios, Nmin becomes the current N
+            # same as above but for H0 only
             ifelse(prop.BF.H0[j]>=eta, 
                    Nmax <- unlist(N[j]),
                    Nmin <- unlist(N[j])
@@ -172,14 +198,14 @@ BayeSSD <- function(eta=.8, m=1000, log.grow=F, t.points=c(0,1,2,3,4),
           } else if(hyp == "h1" | hyp == "H1"){
             prop.BF.H1[j] <- results$power.H1
             
-            # if power>eta in both scenarios, Nmax becomes the current N; if power<eta in both scenarios, Nmin becomes the current N
+            # same as above but for H1 only
             ifelse(prop.BF.H1[j]>=eta, 
                    Nmax <- unlist(N[j]),
                    Nmin <- unlist(N[j])
             )
           }
           
-          cat("Iteration number", j, "\n", "Power evaluation for a total sample size of N =", unlist(N[j]), "with b =", i, "\n") 
+          cat("Iteration number", j, "\n", "Power evaluation for a total sample size of N =", unlist(N[j]), "with b =", i, "* b_min", "\n") 
           
           if(N[j]==Nmin+1 | Nmax==Nmin) {condition=TRUE}
           
@@ -203,6 +229,7 @@ BayeSSD <- function(eta=.8, m=1000, log.grow=F, t.points=c(0,1,2,3,4),
               "Power for H1:", "P(BF10 >", BFthres, "| H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
         }
       }
+      
       print(Sys.time() - start)
     }
   })
