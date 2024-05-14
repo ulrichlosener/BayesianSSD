@@ -70,7 +70,6 @@ ggplot(data=dat_posterior, aes(x=beta.post, y=post.density)) +
   geom_area(aes(y=post.density, x=ifelse(beta.post>0, beta.post, 0)), fill="#999999", alpha=.5) +
   geom_label(data=annotation, aes(x=pos.x, y=pos.y, label=label), size=3)
 
-<<<<<<< HEAD:Figure1_priors_posterior.R
 # Figure 2 ---------------------------------------------------------------------
 # create data, calculate BFs
 res <- list() # storage for results
@@ -114,6 +113,3 @@ p1 + geom_area(data=data.frame(x=dpb1$data[[1]]$x[dpb1$data[[1]]$x>3], y=dpb1$da
   theme(axis.ticks.y = element_blank(), axis.text.y = element_blank(), axis.line.y = element_blank())
 
 # END OF FILE ------------------------------------------------------------------
-=======
-# END OF FILE ------------------------------------------------------------------
->>>>>>> 136457eb6411175213c52be64efa04abd67fc419:Figures.R
