@@ -31,6 +31,7 @@ density.b.rob <- dnorm(beta, mean=0, sd=sd_prior_brob)
 dat_prior <- as.data.frame(cbind(beta, density1, density2, density3, density.b.rob)) # data frame in wide format with different densities
 
 # plot
+
 ggplot(dat_prior, aes(x = beta)) +
   geom_line(aes(y = density1, linetype = "b min"), lwd = 0.8) +
   geom_line(aes(y = density.b.rob, linetype = "b robust"), lwd = 0.8) +
@@ -42,16 +43,15 @@ ggplot(dat_prior, aes(x = beta)) +
   theme_classic() +
   theme(legend.title = element_text(size = 10), 
         legend.text = element_text(size = 10), 
-        legend.position = c(0.9, 0.8)) +
+        legend.position = c(0.8, 0.8), legend.key.width = unit(1, "cm")) +
   geom_segment(aes(x = -5, xend = 0, y = max(density1), yend = max(density1)), linetype = "dotted") +
   geom_segment(aes(x = -5, xend = 0, y = max(density.b.rob), yend = max(density.b.rob)), linetype = "dotted") +
   xlab(bquote(beta[2])) +
   scale_y_continuous(limits = c(0, 0.41), 
                      breaks = c(0, round(max(density1), 2), round(max(density.b.rob), 2))) +
-  ylab("prior density")
+  ylab("prior density") 
 
 # b) Posterior
-
 # create data
 beta.post <- seq(-1,2, length.out=1000)
 post.density <- dnorm(beta.post, mean=.5, sd=sqrt(.1))

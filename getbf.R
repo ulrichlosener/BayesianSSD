@@ -43,7 +43,7 @@ getbf <- function(N, t.points, var.u0, var.u1, cov, var.e, eff.size, fraction, N
   dat0 <- data.frame(id, treat, t)  # combine into data frame
   beta2.H1 <- eff.size * sqrt(var.u1)  # create coefficient of interaction under H1 from effect size; beta2=0|H0
   
-  multinorm <- MASS::mvrnorm(n=2*N, mu=c(0,0), matrix(c(var.u0, cov, cov, var.u1), nrow=2, ncol=2))  # draw random efects
+  multinorm <- MASS::mvrnorm(n=2*N, mu=c(0,0), matrix(c(var.u0, cov, cov, var.u1), nrow=2, ncol=2))  # draw random effects
   
   # generate data under H0 -----------------------------------------------------
   u0.H0 <- rep(multinorm[1:(nrow(multinorm)/2),1], each=n)  # random intercepts for H0
