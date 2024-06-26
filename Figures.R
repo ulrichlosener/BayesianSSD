@@ -7,7 +7,7 @@ library(latex2exp)
 library(tidyr)
 
 # Figure 1 ---------------------------------------------------------------------
-# a) Priors 
+# a) Priors
 
 # set parameters
 beta <- seq(-5, 5, length.out=1000)
