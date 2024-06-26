@@ -323,7 +323,7 @@ BayeSSD <- function(eta=.8, m=1000, log.grow=F, t.points=c(0,1,2,3,4),
                 "Power for H1:", "P(BF1c >", BFthres, "| H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
             
           } else if(hyp == "h0" | hyp == "H0"){
-            
+             
             cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", i, "/ N is N =", unlist(N[j-1]), "\n", 
                 "Power for H0:", "P(BF0c >", BFthres, "| H0) =", unlist(prop.BF.H0[j-1]), "\n", "\n")
             
