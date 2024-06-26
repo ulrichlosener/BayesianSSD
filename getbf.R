@@ -9,7 +9,7 @@
 
 # The function "getbf" uses the following arguments:
 # N = the total sample size (number of subjects)
-# t.points = position of the measurement occasions in time
+# t.points = position of the measurement occasions in time 
 # var.u0 = intercept variance
 # var.u1 = slope variance
 # cov = covariance between intercept and slope variance
