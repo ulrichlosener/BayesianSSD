@@ -1,5 +1,5 @@
 #===============================================================================
-# Function for power determination for a given sample size
+# Function for power determination for a given sample size 
 #===============================================================================
 
 # Hypotheses to be tested:
