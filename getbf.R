@@ -32,7 +32,7 @@ getbf <- function(N, t.points, var.u0, var.u1, cov, var.e, eff.size, fraction, N
          b <- fraction/N,  # b fraction to specify prior = fraction / Neff
          b <- fraction/N*n)
   ifelse(log.grow==F,  # if logarithmic growth is used, take log of t.points
-         t <- rep(t.points, N),  # create time variable t
+        t  <- rep(t.points, N),  # create time variable t
          ifelse(min(t.points)==0,  # if the first timepoint is zero, we add 1 to all timepoints because log(0) is undefined
                 t <- rep(log(t.points+1), N), 
                 t <- rep(log(t.points), N)  # otherwise, just use log(t.points)

@@ -29,8 +29,8 @@
 
 getpower <- function(m=1000, N=72, t.points=c(0,1,2,3,4), 
                          var.u0=0.0333, var.u1=.1, var.e=.0262, cov=0, eff.size=.8, 
-                         BFthres=3, fraction=1, Neff="worst", log.grow=F, seed=NULL, hyp = "both",
-                         test = "alt"){
+                         BFthres=3, fraction=1, Neff="worst", log.grow=F, seed=NULL, hyp="both",
+                         test="alt"){
   
   source("getbf.R")  # call function to simulate data and calculate BFs
   
