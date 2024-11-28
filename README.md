@@ -8,7 +8,7 @@
  - **Old_functions** is a folder containing old versions of the functions above and others.
 
 ## Dependencies:
-`BayeSSD()` -requires-> `getpower()`-requires-> `getbf()` -requires-> `lme4`, `MASS`  
+`BayeSSD()` -requires-> `getpower()` -requires-> `getbf()` -requires-> `lme4`, `MASS`  
   
 To run the SSD function, you need to have both functions `getpower()` and `getbf()` loaded to your global environment. Furthermore, the packages `lme4` and `MASS` need to be installed on your machine.
                         
