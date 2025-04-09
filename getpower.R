@@ -23,25 +23,31 @@
 # log.grow = indicates whether to use logarithmic (TRUE) or linear growth (FALSE)
 # hyp = for which hypotheses should the power be determined ("H0", "H1", "both" or "h0", "h1", "b")
 
-# Note that this function requires loading the function "getbf" in the global environment.
+# Note 1: this function requires loading the function "getbf" in the global environment.
+# Note 2: This function requires the packages "lme4", "MASS","future", and "future.apply"
 
 #-------------------------------------------------------------------------------
 
+
+
 getpower <- function(m=1000, N=72, t.points=c(0,1,2,3,4), 
-                         var.u0=0.0333, var.u1=.1, var.e=.0262, cov=0, eff.size=.8, 
-                         BFthres=3, fraction=1, Neff="worst", log.grow=F, seed=NULL, hyp="both",
-                         test="alt"){
-  
-  source("getbf.R")  # call function to simulate data and calculate BFs
+                              var.u0=0.0333, var.u1=.1, var.e=.0262, cov=0, eff.size=.8, 
+                              BFthres=3, fraction=1, beta1=0, log.grow=F, seed=NULL, hyp="both",
+                              test="alt"){
   
   if(!is.null(seed)) {set.seed(seed)}  # set user-specified seed for reproducibility
   
+  plan(multisession, workers = availableCores() - 1)  # Use all but one core
+  
   Ns <- rep(N, m)  # object to use lapply on with first argument for the function (N)
   suppressMessages({
-  # for every m, execute function to simulate data and calculate BFs
-  bfs <- lapply(Ns, getbf, t.points=t.points, var.u0=var.u0, var.u1=var.u1, cov=cov, var.e=var.e, 
-         eff.size=eff.size, fraction=fraction, Neff=Neff, log.grow=log.grow, hyp=hyp)
+    bfs <- future_lapply(Ns, getbf, t.points=t.points, var.u0=var.u0, var.u1=var.u1, 
+                         cov=cov, var.e=var.e, eff.size=eff.size, fraction=fraction, 
+                         log.grow=log.grow, hyp=hyp, beta1=beta1, future.seed=TRUE)
   })
+  
+  plan(sequential)  # Reset plan to avoid unexpected parallel behavior later
+  
   
   # comparison of H0 and H1 ----------------------------------------------------
   if((hyp == "both" | hyp == "b") & test == "alt"){
@@ -54,7 +60,7 @@ getpower <- function(m=1000, N=72, t.points=c(0,1,2,3,4),
     
   } else if((hyp == "h0" | hyp == "H0") & test == "alt"){
     bf0 <- sapply(bfs, "[[", 1)
-      
+    
     # return power for H0 vs H1 only
     return(list(power.H0 = length(bf0[bf0>=BFthres])/m))
     

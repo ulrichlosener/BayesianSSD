@@ -27,14 +27,15 @@
 # against the unconstrained hypothesis ("Hu" or "hu") or against the complement ("Hc" or "hc")?
 
 # Note 1: this function requires loading the function "getpower" in the global environment.
-# Note 2: the packages "MASS" and "lme4" need to be installed (not attached) in order to run this function
+# Note 2: the packages "MASS", "future" "future.apply", and "lme4" need to be installed in order to run this function
 
 #-------------------------------------------------------------------------------
 
+
 BayeSSD <- function(eta=.8, m=1000, log.grow=F, t.points=c(0,1,2,3,4), 
-                    var.u0=0.0333, var.u1=.1, cov=0, var.e=.02, 
-                    eff.size=.8, BFthres=3, Neff="worst",  fraction=1,
-                    sensitivity=F, seed=NULL, hyp = "both", test="alt") {
+                             var.u0=0.0333, var.u1=.1, cov=0, var.e=.02, 
+                             eff.size=.8, BFthres=3,  fraction=1,
+                             sensitivity=F, seed=NULL, hyp = "both", test="alt", beta1=0) {
   
   # error and warning messages in case of incorrect input
   if(eta<0 | eta>1) {stop("'eta' (the desired power level) must be between 0 and 1.")}
@@ -46,7 +47,7 @@ BayeSSD <- function(eta=.8, m=1000, log.grow=F, t.points=c(0,1,2,3,4),
   if(BFthres<0) {stop("'BFthres' must be positive.")}
   if(fraction%%1!=0 | fraction<1) {stop("'fraction' must be a positive integer, b=fraction/N.")}
   if(m<1000) {warning("Results with less than 1000 generated datasets per iteration can be unreliable and result in power < eta.")}
-  if(m>4999) {print("Depending on your machine and available memory, it might take some time to run this function with m > 5000. Enjoy a lunch or a coffee break while waiting for the results!")}
+  if(m>4999) {print("Depending on your machine and available memory, it might take some time to run this function with m > 5000. Consider setting the hyp argument to h1 to only obtain power for the research hypothesis. Enjoy a lunch or a coffee break while waiting for the results!")}
   if(hyp != "both" & hyp != "h1" & hyp != "h0" & hyp != "b" & hyp != "H0" & hyp != "H1") {
     stop("Value for 'hyp' must be either 'both'/'b', 'h0'/'H0', or 'h1'/'H1'." )
   }
@@ -54,7 +55,8 @@ BayeSSD <- function(eta=.8, m=1000, log.grow=F, t.points=c(0,1,2,3,4),
     stop("Value for 'test' must be either 'alt', 'hc'/'Hc' or 'hu'/'Hu'." )
   }
   if((test == "hu" | test == "Hu") & BFthres > 2 & ((hyp != "h0") | hyp != "H0")) 
-    {stop("The value for 'BFthres' is too high in this configuration, BF1u cannot exceed 2.")}
+  {stop("The value for 'BFthres' is too high in this configuration, BF1u cannot exceed 2.")}
+  if(sensitivity == T & test != "alt") {stop("If none of the hypotheses under consideration have equality constraints, a sensitivity analysis is not necessary as b=fraction/N has no influence on the Bayes Factor")}
   
   start <- Sys.time()   # measure time it takes to execute function
   source("getbf.R")     # call the function for data generation
@@ -80,9 +82,9 @@ BayeSSD <- function(eta=.8, m=1000, log.grow=F, t.points=c(0,1,2,3,4),
         N[j] <- round((Nmin + Nmax)/2, digits = 0)  # current N is the mid point between Nmin and Nmax
         # generate data and store BFs
         results <- getpower(m=m, N=unlist(N[j]), log.grow=log.grow, fraction=fraction, 
-                            t.points=t.points, var.u0=var.u0, var.u1=var.u1, 
-                            cov=cov, var.e=var.e, eff.size=eff.size, 
-                            BFthres=BFthres, Neff=Neff, hyp=hyp, test=test)
+                                     t.points=t.points, var.u0=var.u0, var.u1=var.u1, 
+                                     cov=cov, var.e=var.e, eff.size=eff.size, 
+                                     BFthres=BFthres, hyp=hyp, test=test, beta1=beta1)
         
         if(hyp == "both" | hyp == "b"){
           prop.BF.H0[j] <- results$power.H0
@@ -125,46 +127,46 @@ BayeSSD <- function(eta=.8, m=1000, log.grow=F, t.points=c(0,1,2,3,4),
       if(test == "alt"){
         
         if(hyp == "both" | hyp == "b"){
-          cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N is N =", unlist(N[j-1]), "\n", 
+          cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N_eff is N =", unlist(N[j-1]), "\n", 
               "Power for H0:", "P(BF01 >", BFthres, "| H0) =", unlist(prop.BF.H0[j-1]), "\n",
               "Power for H1:", "P(BF10 >", BFthres, "| H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
           
           # return if function is assigned to an object but not print
           return(invisible(list(Recommended_N = unlist(N[j-1]),
-                           Power_H0 = unlist(prop.BF.H0[j-1]),
-                           Power_H1 = unlist(prop.BF.H1[j-1]),
-                           b_fraction = paste(fraction, "/ N")
-                           )
-                )
+                                Power_H0 = unlist(prop.BF.H0[j-1]),
+                                Power_H1 = unlist(prop.BF.H1[j-1]),
+                                b_fraction = paste(fraction, "/ N")
+          )
+          )
           )
         } else if(hyp == "h0" | hyp == "H0"){
           
-          cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N is N =", unlist(N[j-1]), "\n", 
+          cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N_eff is N =", unlist(N[j-1]), "\n", 
               "Power for H0:", "P(BF01 >", BFthres, "| H0) =", unlist(prop.BF.H0[j-1]), "\n", "\n")
           
           return(invisible(list(Recommended_N = unlist(N[j-1]),
-                          Power_H0 = unlist(prop.BF.H0[j-1]),
-                          b_fraction = paste(fraction, "/ N")
-                          )
-                 )
+                                Power_H0 = unlist(prop.BF.H0[j-1]),
+                                b_fraction = paste(fraction, "/ N")
+          )
+          )
           )
         } else if(hyp == "h1" | hyp == "H1"){
           
-          cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N is N =", unlist(N[j-1]), "\n", 
+          cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N_eff is N =", unlist(N[j-1]), "\n", 
               "Power for H1:", "P(BF10 >", BFthres, "| H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
-        
+          
           return(invisible(list(Recommended_N = unlist(N[j-1]),
-                           Power_H1 = unlist(prop.BF.H1[j-1]),
-                           b_fraction = paste(fraction, "/ N")
-                           )
-                 )
+                                Power_H1 = unlist(prop.BF.H1[j-1]),
+                                b_fraction = paste(fraction, "/ N")
+          )
+          )
           )
         }
-      # print results for testing against the complement hypothesis Hc
+        # print results for testing against the complement hypothesis Hc
       } else if(test == "hc" | test == "Hc"){
         
         if(hyp == "both" | hyp == "b"){
-          cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N is N =", unlist(N[j-1]), "\n", 
+          cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N_eff is N =", unlist(N[j-1]), "\n", 
               "Power for H0:", "P(BF0c >", BFthres, "| H0) =", unlist(prop.BF.H0[j-1]), "\n",
               "Power for H1:", "P(BF1c >", BFthres, "| H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
           
@@ -173,77 +175,77 @@ BayeSSD <- function(eta=.8, m=1000, log.grow=F, t.points=c(0,1,2,3,4),
                                 Power_H0 = unlist(prop.BF.H0[j-1]),
                                 Power_H1 = unlist(prop.BF.H1[j-1]),
                                 b_fraction = paste(fraction, "/ N")
-                          )
-                 )
+          )
+          )
           )
         } else if(hyp == "h0" | hyp == "H0"){
           
-          cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N is N =", unlist(N[j-1]), "\n", 
+          cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N_eff is N =", unlist(N[j-1]), "\n", 
               "Power for H0:", "P(BF0c >", BFthres, "| H0) =", unlist(prop.BF.H0[j-1]), "\n", "\n")
           
           return(invisible(list(Recommended_N = unlist(N[j-1]),
                                 Power_H0 = unlist(prop.BF.H0[j-1]),
                                 b_fraction = paste(fraction, "/ N")
-                           )
-                 )
+          )
+          )
           )
         } else if(hyp == "h1" | hyp == "H1"){
           
-          cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N is N =", unlist(N[j-1]), "\n", 
+          cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N_eff is N =", unlist(N[j-1]), "\n", 
               "Power for H1:", "P(BF1c >", BFthres, "| H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
           
           return(invisible(list(Recommended_N = unlist(N[j-1]),
                                 Power_H1 = unlist(prop.BF.H1[j-1]),
                                 b_fraction = paste(fraction, "/ N")
-                           )
-                 )
           )
-         }
-          # print results for testing against the unconstrained hypothesis Hu
-        } else if(test == "Hu" | test == "hu"){
-          
-          if(hyp == "both" | hyp == "b"){
-            cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N is N =", unlist(N[j-1]), "\n", 
-                "Power for H0:", "P(BF0u >", BFthres, "| H0) =", unlist(prop.BF.H0[j-1]), "\n",
-                "Power for H1:", "P(BF1u >", BFthres, "| H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
-            
-            # return if function is assigned to an object but not print
-            return(invisible(list(Recommended_N = unlist(N[j-1]),
-                                  Power_H0 = unlist(prop.BF.H0[j-1]),
-                                  Power_H1 = unlist(prop.BF.H1[j-1]),
-                                  b_fraction = paste(fraction, "/ N")
-                             )
-                   )
-            )
-          } else if(hyp == "h0" | hyp == "H0"){
-            
-            cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N is N =", unlist(N[j-1]), "\n", 
-                "Power for H0:", "P(BF0u >", BFthres, "| H0) =", unlist(prop.BF.H0[j-1]), "\n", "\n")
-            
-            return(invisible(list(Recommended_N = unlist(N[j-1]),
-                                  Power_H0 = unlist(prop.BF.H0[j-1]),
-                                  b_fraction = paste(fraction, "/ N")
-                             )
-                   )
-            )
-          } else if(hyp == "h1" | hyp == "H1"){
-            
-            cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N is N =", unlist(N[j-1]), "\n", 
-                "Power for H1:", "P(BF1u >", BFthres, "| H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
-            
-            return(invisible(list(Recommended_N = unlist(N[j-1]),
-                                  Power_H1 = unlist(prop.BF.H1[j-1]),
-                                  b_fraction = paste(fraction, "/ N")
-                             )
-                   )
-            )
-          }
+          )
+          )
         }
+        # print results for testing against the unconstrained hypothesis Hu
+      } else if(test == "Hu" | test == "hu"){
+        
+        if(hyp == "both" | hyp == "b"){
+          cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N_eff is N =", unlist(N[j-1]), "\n", 
+              "Power for H0:", "P(BF0u >", BFthres, "| H0) =", unlist(prop.BF.H0[j-1]), "\n",
+              "Power for H1:", "P(BF1u >", BFthres, "| H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
+          
+          # return if function is assigned to an object but not print
+          return(invisible(list(Recommended_N = unlist(N[j-1]),
+                                Power_H0 = unlist(prop.BF.H0[j-1]),
+                                Power_H1 = unlist(prop.BF.H1[j-1]),
+                                b_fraction = paste(fraction, "/ N")
+          )
+          )
+          )
+        } else if(hyp == "h0" | hyp == "H0"){
+          
+          cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N_eff is N =", unlist(N[j-1]), "\n", 
+              "Power for H0:", "P(BF0u >", BFthres, "| H0) =", unlist(prop.BF.H0[j-1]), "\n", "\n")
+          
+          return(invisible(list(Recommended_N = unlist(N[j-1]),
+                                Power_H0 = unlist(prop.BF.H0[j-1]),
+                                b_fraction = paste(fraction, "/ N")
+          )
+          )
+          )
+        } else if(hyp == "h1" | hyp == "H1"){
+          
+          cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", fraction, "/ N_eff is N =", unlist(N[j-1]), "\n", 
+              "Power for H1:", "P(BF1u >", BFthres, "| H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
+          
+          return(invisible(list(Recommended_N = unlist(N[j-1]),
+                                Power_H1 = unlist(prop.BF.H1[j-1]),
+                                b_fraction = paste(fraction, "/ N")
+          )
+          )
+          )
+        }
+      }
       
       # print total runtime
       print(Sys.time() - start)
       
-    # With sensitivity analysis ------------------------------------------------
+      # With sensitivity analysis ------------------------------------------------
     } else if(sensitivity == T){ 
       
       for (i in 1:3) {
@@ -258,8 +260,8 @@ BayeSSD <- function(eta=.8, m=1000, log.grow=F, t.points=c(0,1,2,3,4),
           
           N[j] <- round((Nmin + Nmax)/2, digits = 0)
           results <- getpower(m=m, N=unlist(N[j]), fraction=i, log.grow=log.grow, t.points=t.points, 
-                              var.u0=var.u0, var.u1=var.u1, cov=cov, var.e=var.e, 
-                              eff.size=eff.size, BFthres=BFthres, Neff=Neff, hyp=hyp)
+                                       var.u0=var.u0, var.u1=var.u1, cov=cov, var.e=var.e, 
+                                       eff.size=eff.size, BFthres=BFthres, hyp=hyp)
           
           if(hyp == "both" | hyp == "b"){
             prop.BF.H0[j] <- results$power.H0
@@ -300,60 +302,60 @@ BayeSSD <- function(eta=.8, m=1000, log.grow=F, t.points=c(0,1,2,3,4),
           
           if(hyp == "both" | hyp == "b"){
             
-            cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", i, "/ N is N =", unlist(N[j-1]), "\n", 
+            cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", i, "/ N_eff is N =", unlist(N[j-1]), "\n", 
                 "Power for H0:", "P(BF01 >", BFthres, "| H0) =", unlist(prop.BF.H0[j-1]), "\n",
                 "Power for H1:", "P(BF10 >", BFthres, "| H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
             
           } else if(hyp == "h0" | hyp == "H0"){
             
-            cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", i, "/ N is N =", unlist(N[j-1]), "\n", 
+            cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", i, "/ N_eff is N =", unlist(N[j-1]), "\n", 
                 "Power for H0:", "P(BF01 >", BFthres, "| H0) =", unlist(prop.BF.H0[j-1]), "\n", "\n")
             
           } else if(hyp == "h1" | hyp == "H1"){
             
-            cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", i, "/ N is N =", unlist(N[j-1]), "\n", 
+            cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", i, "/ N_eff is N =", unlist(N[j-1]), "\n", 
                 "Power for H1:", "P(BF10 >", BFthres, "| H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
           }
-        # print results for testing against the complement hypothesis Hu
+          # print results for testing against the complement hypothesis Hu
         } else if(test == "hc" | test == "Hc"){
           
           if(hyp == "both" | hyp == "b"){
-            cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", i, "/ N is N =", unlist(N[j-1]), "\n", 
+            cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", i, "/ N_eff is N =", unlist(N[j-1]), "\n", 
                 "Power for H0:", "P(BF0c >", BFthres, "| H0) =", unlist(prop.BF.H0[j-1]), "\n",
                 "Power for H1:", "P(BF1c >", BFthres, "| H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
             
           } else if(hyp == "h0" | hyp == "H0"){
-             
-            cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", i, "/ N is N =", unlist(N[j-1]), "\n", 
+            
+            cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", i, "/ N_eff is N =", unlist(N[j-1]), "\n", 
                 "Power for H0:", "P(BF0c >", BFthres, "| H0) =", unlist(prop.BF.H0[j-1]), "\n", "\n")
             
           } else if(hyp == "h1" | hyp == "H1"){
             
-            cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", i, "/ N is N =", unlist(N[j-1]), "\n", 
+            cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", i, "/ N_eff is N =", unlist(N[j-1]), "\n", 
                 "Power for H1:", "P(BF1c >", BFthres, "| H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
           } 
-        # print results for testing against the unconstrained hypothesis Hu
+          # print results for testing against the unconstrained hypothesis Hu
         } else if(test == "hu" | test == "Hu"){
           
           if(hyp == "both" | hyp == "b"){
-            cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", i, "/ N is N =", unlist(N[j-1]), "\n", 
+            cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", i, "/ N_eff is N =", unlist(N[j-1]), "\n", 
                 "Power for H0:", "P(BF0u >", BFthres, "| H0) =", unlist(prop.BF.H0[j-1]), "\n",
                 "Power for H1:", "P(BF1u >", BFthres, "| H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
             
           } else if(hyp == "h0" | hyp == "H0"){
             
-            cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", i, "/ N is N =", unlist(N[j-1]), "\n", 
+            cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", i, "/ N_eff is N =", unlist(N[j-1]), "\n", 
                 "Power for H0:", "P(BF0u >", BFthres, "| H0) =", unlist(prop.BF.H0[j-1]), "\n", "\n")
             
           } else if(hyp == "h1" | hyp == "H1"){
             
-            cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", i, "/ N is N =", unlist(N[j-1]), "\n", 
+            cat("\n", "The recommended sample size to achieve a power of at least", eta, "using b =", i, "/ N_eff is N =", unlist(N[j-1]), "\n", 
                 "Power for H1:", "P(BF1u >", BFthres, "| H1) =", unlist(prop.BF.H1[j-1]), "\n", "\n")
           }
         } 
       }
     }
-      
+    
     print(Sys.time() - start)
     
   })
