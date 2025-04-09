@@ -16,10 +16,10 @@
 # var.e = error variance
 # eff.size = effect size defined as beta/sqrt(var.u1), where beta is the coefficient of interaction
 # fraction = fraction of information used to specify prior, b = fraction/N
-# Neff = if "worst": effective sample size = N, if "best": effective sample size = N*n, 
 # where n = number of measurement occasions
 # log.grow = indicates whether to use logarithmic (TRUE) or linear growth (FALSE)
 # hyp = for which hypotheses should the BF be calculated ("H0", "H1", "both" or "h0", "h1", "b")
+# beta1 = main effect of time in the control condition
 
 # Note 1: this function requires the function "get_neff" to be loaded into the global environment
 # Note 2: this function requires the packages "lme4" and "MASS" to be installed

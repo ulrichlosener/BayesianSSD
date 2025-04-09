@@ -18,13 +18,13 @@
 # eff.size = effect size defined as beta/sqrt(var.u1), where beta is the coefficient of interaction
 # Bfthres = threshold a Bayes Factor needs to exceed to be considered substantial
 # fraction = fraction of information used to specify prior, b = fraction/N
-# Neff = if "worst": effective sample size = N, if "best": effective sample size = N*n, 
 # where n = number of measurement occasions
 # log.grow = indicates whether to use logarithmic (TRUE) or linear growth (FALSE)
 # sensitivity = should a sensitivity analysis be carried out for different values (1,2,3) for "fraction"?
 # hyp = for which hypotheses should the SSD be carried out ("H0", "H1", "both" or "h0", "h1", "b")
 # test = which hypothesis should be compared against: H1 vs. H0 or vice versa ("alt"), 
 # against the unconstrained hypothesis ("Hu" or "hu") or against the complement ("Hc" or "hc")?
+# beta1 = main effect of time in the control condition
 
 # Note 1: this function requires loading the function "getpower" in the global environment.
 # Note 2: the packages "MASS", "future" "future.apply", and "lme4" need to be installed in order to run this function
